@@ -2111,9 +2111,9 @@ sub setup_logic_create_crop_landunit {
 
     add_default($opts, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, $var, 
                 'use_fates'=>$nl_flags->{'use_fates'} );
-    if ( &value_is_true($nl_flags->{'use_fates'}) && &value_is_true($nl->get_value($var)) ) {
-         $log->fatal_error( "$var is true and yet use_fates is being set, which contradicts that (use_fates requires $var to be .false." );
-    }
+#    if ( &value_is_true($nl_flags->{'use_fates'}) && &value_is_true($nl->get_value($var)) ) {
+#         $log->fatal_error( "$var is true and yet use_fates is being set, which contradicts that (use_fates requires $var to be .false." );
+#    }
     if ( (! &value_is_true($nl_flags->{'use_fates'})) && (! &value_is_true($nl->get_value($var))) ) {
          $log->fatal_error( "$var is false which is ONLY allowed when FATES is being used" );
     }
