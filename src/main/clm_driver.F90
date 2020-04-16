@@ -13,6 +13,7 @@ module clm_driver
   use clm_varctl             , only : use_cn, use_lch4, use_noio, use_c13, use_c14
   use clm_varctl             , only : use_crop, ndep_from_cpl
   use clm_varctl             , only : use_soil_moisture_streams
+  use clm_varctl             , only : use_fates_ed_st3
   use clm_time_manager       , only : get_nstep, is_beg_curr_day
   use clm_time_manager       , only : get_prev_date, is_first_step
   use clm_varpar             , only : nlevsno, nlevgrnd
@@ -846,7 +847,7 @@ contains
 
                 ! Prescribed biogeography - prescribed canopy structure, some prognostic carbon fluxes
 
-       if ((.not. use_cn) .and. (.not. use_fates) .and. (doalb)) then 
+       if ((.not. use_cn) .and. ((use_fates .and. use_fates_ed_st3) or (.not. use_fates)) .and. (doalb)) then 
           call t_startf('SatellitePhenology')
           call SatellitePhenology(bounds_clump, filter(nc)%num_nolakep, filter(nc)%nolakep, &
                waterstate_inst, canopystate_inst)

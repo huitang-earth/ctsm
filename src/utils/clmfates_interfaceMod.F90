@@ -802,8 +802,20 @@ contains
           c = this%f2hmap(nc)%fcolumn(s)
           this%fates(nc)%bc_in(s)%snow_depth_si   = snow_depth(c)
           this%fates(nc)%bc_in(s)%frac_sno_eff_si = frac_sno_eff(c)
+
+          if(use_fates_ed_st3) then
+             do ifp = 1, npatch
+                p = ifp+col%patchi(c)
+                this%fates(nc)%bc_in(s)%tlai_pa(ifp)=  tlai(p) 
+                this%fates(nc)%bc_in(s)%tsai_pa(ifp)=  tsai(p)
+               ! this%fates(nc)%bc_in(s)%hbot_pa(ifp)=  hbot(p)
+               ! this%fates(nc)%bc_in(s)%htop_pa(ifp)=  htop(p) 
+
+             end do
+          endif
        end do
-       
+
+
        ! Canopy diagnostics for FATES
        call canopy_summarization(this%fates(nc)%nsites, &
             this%fates(nc)%sites,  &
@@ -850,10 +862,13 @@ contains
 
           ! Other modules may have AI's we only flush values
           ! that are on the naturally vegetated columns
+
+          if(.not. use_fates_ed_st3) then
+             tlai(col%patchi(c):col%patchf(c)) = 0.0_r8
+             tsai(col%patchi(c):col%patchf(c)) = 0.0_r8
+          end if
           elai(col%patchi(c):col%patchf(c)) = 0.0_r8
-          tlai(col%patchi(c):col%patchf(c)) = 0.0_r8
           esai(col%patchi(c):col%patchf(c)) = 0.0_r8
-          tsai(col%patchi(c):col%patchf(c)) = 0.0_r8
           htop(col%patchi(c):col%patchf(c)) = 0.0_r8
           hbot(col%patchi(c):col%patchf(c)) = 0.0_r8
 
@@ -894,10 +909,12 @@ contains
 
              patch%is_veg(p) = .true.
              patch%wt_ed(p)  = this%fates(nc)%bc_out(s)%canopy_fraction_pa(ifp)
+             if(.not. use_fates_ed_st3) then
+                tlai(p) = this%fates(nc)%bc_out(s)%tlai_pa(ifp)
+                tsai(p) = this%fates(nc)%bc_out(s)%tsai_pa(ifp)
+             end if
              elai(p) = this%fates(nc)%bc_out(s)%elai_pa(ifp)
-             tlai(p) = this%fates(nc)%bc_out(s)%tlai_pa(ifp)
              esai(p) = this%fates(nc)%bc_out(s)%esai_pa(ifp)
-             tsai(p) = this%fates(nc)%bc_out(s)%tsai_pa(ifp)
              hbot(p) = this%fates(nc)%bc_out(s)%hbot_pa(ifp)
              htop(p) = this%fates(nc)%bc_out(s)%htop_pa(ifp)
              frac_veg_nosno_alb(p) = this%fates(nc)%bc_out(s)%frac_veg_nosno_alb_pa(ifp)
