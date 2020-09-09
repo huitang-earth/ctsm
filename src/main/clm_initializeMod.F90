@@ -12,7 +12,7 @@ module clm_initializeMod
   use clm_varctl      , only : nsrest, nsrStartup, nsrContinue, nsrBranch
   use clm_varctl      , only : is_cold_start, is_interpolated_start
   use clm_varctl      , only : iulog
-  use clm_varctl      , only : use_lch4, use_cn, use_cndv, use_c13, use_c14, use_fates
+  use clm_varctl      , only : use_lch4, use_cn, use_cndv, use_c13, use_c14, use_fates, use_fates_ed_st3
   use clm_varctl      , only : use_soil_moisture_streams
   use clm_instur      , only : wt_lunit, urban_valid, wt_nat_patch, wt_cft, fert_cft, wt_glc_mec, topo_glc_mec
   use perf_mod        , only : t_startf, t_stopf
@@ -286,7 +286,7 @@ contains
     use restFileMod           , only : restFile_read, restFile_write 
     use ndepStreamMod         , only : ndep_init, ndep_interp
     use LakeCon               , only : LakeConInit 
-    use SatellitePhenologyMod , only : SatellitePhenologyInit, readAnnualVegetation, interpMonthlyVeg
+    use SatellitePhenologyMod , only : SatellitePhenologyInit, readAnnualVegetation, interpMonthlyVeg, SatellitePhenology
     use SnowSnicarMod         , only : SnowAge_init, SnowOptics_init
     use lnd2atmMod            , only : lnd2atm_minimal
     use NutrientCompetitionFactoryMod, only : create_nutrient_competition_method
@@ -473,6 +473,36 @@ contains
        end if
     else
        call SatellitePhenologyInit(bounds_proc)
+    end if
+
+    ! Hui Tang: Because the initialization of FATES will call "canopy_summarization", which will check if canopy profile equal 1, thus tlai and tsai have to be set earlier during "initialization", rather than during "clm_drive". 
+    ! All the input variables for the two subroutines have been declared in this module, so no need to add delarations of these variables. 
+    ! "SatellitePhenology" is run in parallel (OpenMPI), 'interpMonthlyVeg' is not.   
+    ! "filter(nc)%num_nolakep" and "filter(nc)%nolakep" need to be updated according to the number of patch and pfts used in FATES? (No, patch structure is static in CLM)
+    !  "SatellitePhenology" use clm Patch type definition, which has to be updated and in-line with patch/cohourt used in FATES. 
+    !  The transformation from "clm patch type" into "fates patch type" should happen in CLM or FATES?
+    !  In every time step, tlai and tsai from host model will be reset according to the results from FATES. See: CLMFatesInterfaceMod.f90
+    !  Consider the possiblity of reseting tlai and tsai (CLM VS FATES) every time step: 
+       ! When "SatellitePhenology" is called, "tlai and tsai" is set to clm patch structure;
+       ! When "wrap_update_hlmfates_dyn" is called, "tlai and tsai" is set to FATES patch structure;       
+    
+    if ( use_fates .and. use_fates_ed_st3 ) then
+
+       call t_startf('interpMonthlyVeg')
+       call interpMonthlyVeg(bounds_proc, canopystate_inst)
+       call t_stopf('interpMonthlyVeg')
+     
+       ! As "clm_drive", "SatellitePhenology" is run in parallel.  
+       !$OMP PARALLEL DO PRIVATE (nc, bounds_clump)
+       do nc = 1,nclumps
+         call get_clump_bounds(nc, bounds_clump)
+         call t_startf('SatellitePhenology')
+         call SatellitePhenology(bounds_clump, filter(nc)%num_nolakep, filter(nc)%nolakep, &
+               waterstate_inst, canopystate_inst)
+         call t_stopf('SatellitePhenology')
+       end do
+       !$OMP END PARALLEL DO
+
     end if
 
     if(use_soil_moisture_streams) then 

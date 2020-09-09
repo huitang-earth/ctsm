@@ -13,7 +13,7 @@ module clm_driver
   use clm_varctl             , only : use_cn, use_lch4, use_noio, use_c13, use_c14
   use clm_varctl             , only : use_crop, ndep_from_cpl
   use clm_varctl             , only : use_soil_moisture_streams
-  use clm_varctl             , only : use_fates_ed_st3
+  use clm_varctl             , only : use_fates_ed_st3          ! Hui Tang: Add options to turn on and off satellite phenology
   use clm_time_manager       , only : get_nstep, is_beg_curr_day
   use clm_time_manager       , only : get_prev_date, is_first_step
   use clm_varpar             , only : nlevsno, nlevgrnd
@@ -845,15 +845,6 @@ contains
 
        end if
 
-                ! Prescribed biogeography - prescribed canopy structure, some prognostic carbon fluxes
-
-       if ((.not. use_cn) .and. ((use_fates .and. use_fates_ed_st3) or (.not. use_fates)) .and. (doalb)) then 
-          call t_startf('SatellitePhenology')
-          call SatellitePhenology(bounds_clump, filter(nc)%num_nolakep, filter(nc)%nolakep, &
-               waterstate_inst, canopystate_inst)
-          call t_stopf('SatellitePhenology')
-       end if
-
        ! Dry Deposition of chemical tracers (Wesely (1998) parameterizaion)
           
        call t_startf('depvel')
@@ -861,6 +852,22 @@ contains
             atm2lnd_inst, canopystate_inst, waterstate_inst, frictionvel_inst, &
             photosyns_inst, drydepvel_inst)
        call t_stopf('depvel')
+       
+       ! Prescribed biogeography - prescribed canopy structure, some prognostic carbon fluxes
+       ! Hui Tang: allow using monrhly LAI from satellite data
+                 ! put "SatellitePhenology" down to "depvel_compute", because 
+                 ! (1) we want "depvel_compute" use lai from fates. 
+                 ! (2) "SatellitePhenology" has been initialized in "clm_initializeMod".
+                 ! (3) Only concern is that dry deposition always use lai from previous time step. 
+                 ! (4) Problem: does "SatellitePhenology" here use the same "filter" as that in FATES? Yes, it should include all the patches in CLM (PFTs) and FATES. 
+                    !  It seems that "setFilters( bounds_clump, glc_behavior )" after "clm_fates%dynamics_driv" does not change the filter, because "set_active" is not called 
+                    !  setFilters still include active patches in previous timestep and is the same as CLM surface data.   
+       if ((.not. use_cn) .and. ((use_fates .and. use_fates_ed_st3) .or. (.not. use_fates)) .and. (doalb)) then 
+          call t_startf('SatellitePhenology')
+          call SatellitePhenology(bounds_clump, filter(nc)%num_nolakep, filter(nc)%nolakep, &
+               waterstate_inst, canopystate_inst)
+          call t_stopf('SatellitePhenology')
+       end if
 
        ! ============================================================================
        ! Calculate soil/snow hydrology with drainage (subsurface runoff)
@@ -878,6 +885,7 @@ contains
             irrigation_inst, glacier_smb_inst)
 
        call t_stopf('hydro2_drainage')     
+       
 
        if (use_cn) then
 

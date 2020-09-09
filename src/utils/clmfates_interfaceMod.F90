@@ -803,14 +803,14 @@ contains
           this%fates(nc)%bc_in(s)%snow_depth_si   = snow_depth(c)
           this%fates(nc)%bc_in(s)%frac_sno_eff_si = frac_sno_eff(c)
 
+          ! Hui Tang: read tlai, tsai, hbot and htop from host model as the input to fates. hbot and htop have not been used yet, but are just kept as placeholder
           if(use_fates_ed_st3) then
              do ifp = 1, npatch
-                p = ifp+col%patchi(c)
+                p = ifp+col%patchi(c)                                       ! patchi(c) is the starting patch index for column c.
                 this%fates(nc)%bc_in(s)%tlai_pa(ifp)=  tlai(p) 
                 this%fates(nc)%bc_in(s)%tsai_pa(ifp)=  tsai(p)
                ! this%fates(nc)%bc_in(s)%hbot_pa(ifp)=  hbot(p)
-               ! this%fates(nc)%bc_in(s)%htop_pa(ifp)=  htop(p) 
-
+               ! this%fates(nc)%bc_in(s)%htop_pa(ifp)=  htop(p)  
              end do
           endif
        end do
@@ -863,10 +863,15 @@ contains
           ! Other modules may have AI's we only flush values
           ! that are on the naturally vegetated columns
 
-          if(.not. use_fates_ed_st3) then
+          ! Hui Tang: when st3 mode is used, tlai and tsai will be from host model, not set to 0
+!          if(.not. use_fates_ed_st3) then
              tlai(col%patchi(c):col%patchf(c)) = 0.0_r8
              tsai(col%patchi(c):col%patchf(c)) = 0.0_r8
-          end if
+!             elai(col%patchi(c):col%patchf(c)) = 0.0_r8
+!             esai(col%patchi(c):col%patchf(c)) = 0.0_r8
+!             htop(col%patchi(c):col%patchf(c)) = 0.0_r8
+!             hbot(col%patchi(c):col%patchf(c)) = 0.0_r8
+!          end if
           elai(col%patchi(c):col%patchf(c)) = 0.0_r8
           esai(col%patchi(c):col%patchf(c)) = 0.0_r8
           htop(col%patchi(c):col%patchf(c)) = 0.0_r8
@@ -909,10 +914,14 @@ contains
 
              patch%is_veg(p) = .true.
              patch%wt_ed(p)  = this%fates(nc)%bc_out(s)%canopy_fraction_pa(ifp)
-             if(.not. use_fates_ed_st3) then
+             
+             ! Hui Tang: when st3 mode is used, tlai and tsai will not be sent back to host land model.           
+!             if(.not. use_fates_ed_st3) then
                 tlai(p) = this%fates(nc)%bc_out(s)%tlai_pa(ifp)
                 tsai(p) = this%fates(nc)%bc_out(s)%tsai_pa(ifp)
-             end if
+!                hbot(p) = this%fates(nc)%bc_out(s)%hbot_pa(ifp)
+!                htop(p) = this%fates(nc)%bc_out(s)%htop_pa(ifp)
+!             end if
              elai(p) = this%fates(nc)%bc_out(s)%elai_pa(ifp)
              esai(p) = this%fates(nc)%bc_out(s)%esai_pa(ifp)
              hbot(p) = this%fates(nc)%bc_out(s)%hbot_pa(ifp)
