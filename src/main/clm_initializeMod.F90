@@ -486,24 +486,25 @@ contains
        ! When "SatellitePhenology" is called, "tlai and tsai" is set to clm patch structure;
        ! When "wrap_update_hlmfates_dyn" is called, "tlai and tsai" is set to FATES patch structure;       
     
-    if ( use_fates .and. use_fates_ed_st3 ) then
+!    if ( use_fates .and. use_fates_ed_st3 ) then
 
-       call t_startf('interpMonthlyVeg')
-       call interpMonthlyVeg(bounds_proc, canopystate_inst)
-       call t_stopf('interpMonthlyVeg')
+!       call t_startf('interpMonthlyVeg')
+!       call interpMonthlyVeg(bounds_proc, canopystate_inst)
+!       call t_stopf('interpMonthlyVeg')
      
        ! As "clm_drive", "SatellitePhenology" is run in parallel.  
-       !$OMP PARALLEL DO PRIVATE (nc, bounds_clump)
-       do nc = 1,nclumps
-         call get_clump_bounds(nc, bounds_clump)
-         call t_startf('SatellitePhenology')
-         call SatellitePhenology(bounds_clump, filter(nc)%num_nolakep, filter(nc)%nolakep, &
-               waterstate_inst, canopystate_inst)
-         call t_stopf('SatellitePhenology')
-       end do
-       !$OMP END PARALLEL DO
+!       !$OMP PARALLEL DO PRIVATE (nc, bounds_clump)
+!       do nc = 1,nclumps
+!         call get_clump_bounds(nc, bounds_clump)
+!         call t_startf('SatellitePhenology')
+!         call SatellitePhenology(bounds_clump, filter(nc)%num_soilp, filter(nc)%soilp, &
+!               waterstate_inst, canopystate_inst)
+!         call t_stopf('SatellitePhenology')
+!       end do
+!       !$OMP END PARALLEL DO
+ !      print *, "canopystate_inst%tlai_patch=", canopystate_inst%tlai_patch(filter(nc)%nolakep(1:10))
 
-    end if
+!    end if
 
     if(use_soil_moisture_streams) then 
        call PrescribedSoilMoistureInit(bounds_proc)

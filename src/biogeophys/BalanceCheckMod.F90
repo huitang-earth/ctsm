@@ -609,7 +609,7 @@ contains
              write(iulog,*)'forc_tot      = ',forc_solad(indexg,1)+forc_solad(indexg,2) &
                +forc_solai(indexg,1)+forc_solai(indexg,2)
              write(iulog,*)'clm model is stopping'
-             call endrun(decomp_index=indexp, clmlevel=namep, msg=errmsg(sourcefile, __LINE__))
+!             call endrun(decomp_index=indexp, clmlevel=namep, msg=errmsg(sourcefile, __LINE__))
           end if
        end if
 

@@ -237,7 +237,8 @@ contains
        ! vegetation top [mhvt1,mhvt2] and vegetation bottom [mhvb1,mhvb2]. The
        ! weights obtained here are used in subroutine SatellitePhenology to obtain time
        ! interpolated values.
-       if (doalb .or. ( n_drydep > 0 .and. drydep_method == DD_XLND )) then
+!       if (doalb .or. ( n_drydep > 0 .and. drydep_method == DD_XLND )) then
+        if (is_beg_curr_day() .or. ( n_drydep > 0 .and. drydep_method == DD_XLND )) then
           call t_startf('interpMonthlyVeg')
           call interpMonthlyVeg(bounds_proc, canopystate_inst)
           call t_stopf('interpMonthlyVeg')
@@ -862,9 +863,9 @@ contains
                  ! (4) Problem: does "SatellitePhenology" here use the same "filter" as that in FATES? Yes, it should include all the patches in CLM (PFTs) and FATES. 
                     !  It seems that "setFilters( bounds_clump, glc_behavior )" after "clm_fates%dynamics_driv" does not change the filter, because "set_active" is not called 
                     !  setFilters still include active patches in previous timestep and is the same as CLM surface data.   
-       if ((.not. use_cn) .and. ((use_fates .and. use_fates_ed_st3) .or. (.not. use_fates)) .and. (doalb)) then 
+       if ((.not. use_cn) .and. ((use_fates .and. use_fates_ed_st3) .or. (.not. use_fates)) .and. is_beg_curr_day()) then 
           call t_startf('SatellitePhenology')
-          call SatellitePhenology(bounds_clump, filter(nc)%num_nolakep, filter(nc)%nolakep, &
+          call SatellitePhenology(bounds_clump, filter(nc)%num_soilp, filter(nc)%soilp, &
                waterstate_inst, canopystate_inst)
           call t_stopf('SatellitePhenology')
        end if

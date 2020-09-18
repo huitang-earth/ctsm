@@ -733,11 +733,12 @@ contains
       ! Part III.2 (continued).
       ! Update diagnostics of the FATES ecosystem structure that are used in the HLM.
       ! ---------------------------------------------------------------------------------
+      !print *, "dynamicOK"
       call this%wrap_update_hlmfates_dyn(nc,               &
                                          bounds_clump,     &
                                          waterstate_inst,  &
                                          canopystate_inst, &
-                                         frictionvel_inst)
+                                         frictionvel_inst, inverse=.true.)
       
       ! ---------------------------------------------------------------------------------
       ! Part IV: 
@@ -759,7 +760,7 @@ contains
    ! ------------------------------------------------------------------------------------
 
    subroutine wrap_update_hlmfates_dyn(this, nc, bounds_clump,      &
-        waterstate_inst, canopystate_inst, frictionvel_inst )
+        waterstate_inst, canopystate_inst, frictionvel_inst, inverse)
 
       ! ---------------------------------------------------------------------------------
       ! This routine handles the updating of vegetation canopy diagnostics, (such as lai)
@@ -771,6 +772,7 @@ contains
      class(hlm_fates_interface_type), intent(inout) :: this
      type(bounds_type),intent(in)                   :: bounds_clump
      integer                 , intent(in)           :: nc
+     logical                 , intent(in)           :: inverse 
      type(waterstate_type)   , intent(inout)        :: waterstate_inst
      type(canopystate_type)  , intent(inout)        :: canopystate_inst
      type(frictionvel_type)  , intent(inout)        :: frictionvel_inst
@@ -795,20 +797,23 @@ contains
          frac_sno_eff => waterstate_inst%frac_sno_eff_col, &
          frac_veg_nosno_alb => canopystate_inst%frac_veg_nosno_alb_patch)
 
-
+       ! print *, "tlai1=", tlai(1:100)
        ! Process input boundary conditions to FATES
        ! --------------------------------------------------------------------------------
        do s=1,this%fates(nc)%nsites
           c = this%f2hmap(nc)%fcolumn(s)
+
           this%fates(nc)%bc_in(s)%snow_depth_si   = snow_depth(c)
           this%fates(nc)%bc_in(s)%frac_sno_eff_si = frac_sno_eff(c)
 
           ! Hui Tang: read tlai, tsai, hbot and htop from host model as the input to fates. hbot and htop have not been used yet, but are just kept as placeholder
-          if(use_fates_ed_st3) then
-             do ifp = 1, npatch
+          npatch = this%fates(nc)%sites(s)%youngest_patch%patchno
+          if(use_fates_ed_st3) then            
+             do ifp = 1, 14
                 p = ifp+col%patchi(c)                                       ! patchi(c) is the starting patch index for column c.
                 this%fates(nc)%bc_in(s)%tlai_pa(ifp)=  tlai(p) 
                 this%fates(nc)%bc_in(s)%tsai_pa(ifp)=  tsai(p)
+               ! print *, "tlai2=", s, ifp, p, tlai(p), this%fates(nc)%bc_in(s)%tlai_pa(ifp)
                ! this%fates(nc)%bc_in(s)%hbot_pa(ifp)=  hbot(p)
                ! this%fates(nc)%bc_in(s)%htop_pa(ifp)=  htop(p)  
              end do
@@ -819,7 +824,7 @@ contains
        ! Canopy diagnostics for FATES
        call canopy_summarization(this%fates(nc)%nsites, &
             this%fates(nc)%sites,  &
-            this%fates(nc)%bc_in)
+            this%fates(nc)%bc_in, inverse)
 
        ! Canopy diagnostic outputs for HLM
        call update_hlm_dynamics(this%fates(nc)%nsites, &
@@ -1201,8 +1206,9 @@ contains
                ! ------------------------------------------------------------------------
                ! Update diagnostics of FATES ecosystem structure used in HLM.
                ! ------------------------------------------------------------------------
+               !print *, "restartOK"
                call this%wrap_update_hlmfates_dyn(nc,bounds_clump, &
-                     waterstate_inst,canopystate_inst,frictionvel_inst)
+                     waterstate_inst,canopystate_inst,frictionvel_inst,inverse=.false.)
 
                ! ------------------------------------------------------------------------
                ! Update the 3D patch level radiation absorption fractions
@@ -1325,8 +1331,10 @@ contains
            ! ------------------------------------------------------------------------
            ! Update diagnostics of FATES ecosystem structure used in HLM.
            ! ------------------------------------------------------------------------
+           
+           !print *, "init_coldOK"
            call this%wrap_update_hlmfates_dyn(nc,bounds_clump, &
-                waterstate_inst,canopystate_inst,frictionvel_inst)
+                waterstate_inst,canopystate_inst,frictionvel_inst,inverse=.false.)
 
            ! ------------------------------------------------------------------------
            ! Update history IO fields that depend on ecosystem dynamics

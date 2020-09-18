@@ -385,7 +385,8 @@ contains
     do p = bounds%begp,bounds%endp
        if (patch%active(p) .or. include_inactive) then
           l =patch%landunit(p)
-          if (lun%itype(l) == istsoil .or. lun%itype(l) == istcrop) then
+!          if (lun%itype(l) == istsoil .or. lun%itype(l) == istcrop) then
+          if (lun%itype(l) == istsoil ) then
              fs = fs + 1
              this_filter(nc)%soilp(fs) = p
           end if

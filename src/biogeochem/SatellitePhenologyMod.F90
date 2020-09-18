@@ -18,6 +18,7 @@ module SatellitePhenologyMod
   use abortutils      , only : endrun
   use clm_varctl      , only : scmlat,scmlon,single_column
   use clm_varctl      , only : iulog, use_lai_streams
+  use clm_varctl      , only : use_fates, use_fates_ed_st3
   use clm_varcon      , only : grlnd
   use controlMod      , only : NLFilename
   use decompMod       , only : gsmap_lnd_gdc2glo
@@ -348,7 +349,7 @@ contains
     type(canopystate_type) , intent(inout) :: canopystate_inst
     !
     ! !LOCAL VARIABLES:
-    integer  :: fp,p,c                            ! indices
+    integer  :: fp,p,c,l                            ! indices
     real(r8) :: ol                                ! thickness of canopy layer covered by snow (m)
     real(r8) :: fb                                ! fraction of canopy layer covered by snow
     !-----------------------------------------------------------------------
@@ -369,10 +370,26 @@ contains
          call lai_interp(bounds, canopystate_inst)
       endif
 
-
-      do fp = 1, num_nolakep
-         p = filter_nolakep(fp)
-         c = patch%column(p)
+      if (use_fates .and. use_fates_ed_st3) then        
+         do p = bounds%begp,bounds%endp,15
+            c = patch%column(p)
+            do l = 1, 15      ! avoid using any patch filter here, as it is set according to FATES patch structure.
+            ! p should be ordered according to different PFT types from small to large. 
+              if ((patch%itype(p+l-1) > 0) .and. (patch%itype(p+l-1) < 15) ) then     ! vegetated pft ; this statement is needed to avoid assign values to non-vegetation patches
+                 tlai(p+l-1) = timwt(1)*mlai2t(p+l-1,1) + timwt(2)*mlai2t(p+l-1,2)
+                 tsai(p+l-1) = timwt(1)*msai2t(p+l-1,1) + timwt(2)*msai2t(p+l-1,2)
+                 htop(p+l-1) = timwt(1)*mhvt2t(p+l-1,1) + timwt(2)*mhvt2t(p+l-1,2)
+                 hbot(p+l-1) = timwt(1)*mhvb2t(p+l-1,1) + timwt(2)*mhvb2t(p+l-1,2)
+               ! print *, "tlai0=",c,p+l-1,patch%itype(p+l-1),tlai(p+l-1),mlai2t(p+l-1,1),mlai2t(p+l-1,2),timwt(1),timwt(2)
+              !else
+               ! print *, "tlai0=",c,p+l-1,patch%itype(p+l-1),tlai(p+l-1),mlai2t(p+l-1,1),mlai2t(p+l-1,2),timwt(1),timwt(2)
+              end if
+            end do
+          end do   ! end of loop over patches
+      else
+         do fp = 1, num_nolakep
+           p = filter_nolakep(fp)
+           c = patch%column(p)
 
          ! need to update elai and esai only every albedo time step so do not
          ! have any inconsistency in lai and sai between SurfaceAlbedo calls (i.e.,
@@ -397,7 +414,9 @@ contains
          tsai(p) = timwt(1)*msai2t(p,1) + timwt(2)*msai2t(p,2)
          htop(p) = timwt(1)*mhvt2t(p,1) + timwt(2)*mhvt2t(p,2)
          hbot(p) = timwt(1)*mhvb2t(p,1) + timwt(2)*mhvb2t(p,2)
-
+         
+         !print *, "tlai0=",c,p,patch%itype(p),tlai(p),mlai2t(p,1),mlai2t(p,2),timwt(1),timwt(2)
+ 
          ! adjust lai and sai for burying by snow. if exposed lai and sai
          ! are less than 0.05, set equal to zero to prevent numerical
          ! problems associated with very small lai and sai.
@@ -427,8 +446,8 @@ contains
          else
             frac_veg_nosno_alb(p) = 0
          end if
-
-      end do ! end of patch loop
+       end do ! end of patch loop
+     end if
 
     end associate
 
@@ -677,25 +696,45 @@ contains
        ! Assign lai/sai/hgtt/hgtb to the top [maxpatch_pft] patches
        ! as determined in subroutine surfrd
 
-       do p = bounds%begp,bounds%endp
-          g =patch%gridcell(p)
-          if (patch%itype(p) /= noveg) then     ! vegetated pft
-             do l = 0, numpft
-                if (l == patch%itype(p)) then
-                   mlai2t(p,k) = mlai(g,l)
-                   msai2t(p,k) = msai(g,l)
-                   mhvt2t(p,k) = mhgtt(g,l)
-                   mhvb2t(p,k) = mhgtb(g,l)
-                end if
-             end do
-          else                        ! non-vegetated pft
-             mlai2t(p,k) = 0._r8
-             msai2t(p,k) = 0._r8
-             mhvt2t(p,k) = 0._r8
-             mhvb2t(p,k) = 0._r8
-          end if
-       end do   ! end of loop over patches
 
+       if (use_fates .and. use_fates_ed_st3) then  
+          do p = bounds%begp,bounds%endp,15        ! Assume that the "begp" is always the start of a patch
+             g =patch%gridcell(p)
+             do l = 0, 14      ! avoid using any patch filter here, as it is set according to FATES patch structure.
+             ! p should be ordered according to different PFT types from small to large. 
+               if ((patch%itype(p+l) > 0) .and. (patch%itype(p+l) < 15)) then     ! vegetated pft
+                mlai2t(p+l,k) = mlai(g,l)
+                msai2t(p+l,k) = msai(g,l)
+                mhvt2t(p+l,k) = mhgtt(g,l)
+                mhvb2t(p+l,k) = mhgtb(g,l)
+               else
+                mlai2t(p+l,k) = 0._r8
+                msai2t(p+l,k) = 0._r8
+                mhvt2t(p+l,k) = 0._r8
+                mhvb2t(p+l,k) = 0._r8              
+               end if
+             end do
+           end do ! end of loop over patches
+       else
+          do p = bounds%begp,bounds%endp        ! Assume that the "begp" is always the start of a patch
+             g =patch%gridcell(p)
+             if (patch%itype(p) /= noveg) then     ! vegetated pft
+                 do l = 0, numpft
+                    if (l == patch%itype(p)) then
+                        mlai2t(p,k) = mlai(g,l)
+                        msai2t(p,k) = msai(g,l)
+                        mhvt2t(p,k) = mhgtt(g,l)
+                        mhvb2t(p,k) = mhgtb(g,l)
+                    end if
+                  end do
+             else                        ! non-vegetated pft
+                  mlai2t(p,k) = 0._r8
+                  msai2t(p,k) = 0._r8
+                  mhvt2t(p,k) = 0._r8
+                  mhvb2t(p,k) = 0._r8
+             end if
+           end do ! end of loop over patches
+        end if ! use_fates or not
     end do   ! end of loop over months
 
     call ncd_pio_closefile(ncid)
