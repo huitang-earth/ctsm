@@ -11,12 +11,12 @@
 date="200927"         # Date when you create the inputdata. 
 input_dir="/cluster/shared/noresm/inputdata_fates_platform" # home folder for storing the inputdata for each site. 
 input_raw="/cluster/shared/noresm/inputdata"                # home folder for storing the raw date required by surface data file
-version  ="version2.0.0"                                    # version of inputdata
+version="version2.0.0"                                    # version of inputdata
 
 ######### SeedClim Sites
-#plotlat=(61.0243 60.8231 60.8328 60.9335 60.8203 60.8760 61.0866 60.5445 61.0355 60.8803 60.6652 60.6901)
-#plotlon=(8.12343 7.27596 7.17561 6.41504 8.70466 7.17666 6.63028 6.51468 9.07876 7.16982 6.33738 5.96487)
-#plotname=(ALP1 ALP2 ALP3 ALP4 SUB1 SUB2 SUB3 SUB4 BOR1 BOR2 BOR3 BOR4)
+plotlat=(61.0243 60.8231 60.8328 60.9335 60.8203 60.8760 61.0866 60.5445 61.0355 60.8803 60.6652 60.6901)
+plotlon=(8.12343 7.27596 7.17561 6.41504 8.70466 7.17666 6.63028 6.51468 9.07876 7.16982 6.33738 5.96487)
+plotname=(ALP1 ALP2 ALP3 ALP4 SUB1 SUB2 SUB3 SUB4 BOR1 BOR2 BOR3 BOR4)
 
 ######### Landpress Sites
 #plotlat=(60.70084 65.83677 64.779 65.79602)
@@ -29,9 +29,9 @@ version  ="version2.0.0"                                    # version of inputda
 #plotname=(VIKE JOAS LIAH)
 
 ######### Finnmark Site
-plotlat=(69.341088)
-plotlon=(25.293524)
-plotname=(FINN)
+#plotlat=(69.341088)
+#plotlon=(25.293524)
+#plotname=(FINN)
 
 
 ######### Switch for all the steps related to setting a site simulation. 
@@ -52,10 +52,14 @@ tar_input="F"                  # T or F, switch for tar all the input data requi
 run_case="F"                   # T or F, switch for running site simulations automatically. "T" can only be used when all the inputdata are ready!!!!  
 run_case_first="F"             # T or F, swtich for creating, building and submitting short test runs
 run_case_second="F"            # T or F, swtich for running long experiments
+run_archive="T"                # T or F, swtich for archiving experiments. 
+merge_hist="T"                 # T or F, merge history experiments. 
 
 #0 1 2 3 4 5 6 7 8 9 10 11
-for i in 0
+for i in 0 1 2 3 4 5 6 7 8 9 10 11
 do
+
+case_name="${plotname[i]}_default_2.0.1"
  
 ######## Make script grids:
 if [ ${creat_script} == "T" ]
@@ -198,14 +202,14 @@ then
   if [ ${run_case_first} == "T" ]
   then
     cd ~/ctsm/cime/scripts
-    ./create_newcase --case ../../../ctsm_cases/2000FATES_${plotname[i]} --compset 2000_DATM%1PTGSWP3_CLM50%FATES_SICE_SOCN_MOSART_SGLC_SWAV --res 1x1_${plotname[i]} --machine saga --run-unsupported --project nn2806k
+    ./create_newcase --case ../../../ctsm_cases/${case_name} --compset 2000_DATM%1PTGSWP3_CLM50%FATES_SICE_SOCN_MOSART_SGLC_SWAV --res 1x1_${plotname[i]} --machine saga --run-unsupported --project nn2806k
 
-  cp ${input_dir}/inputdata_version1.0.0_${plotname[i]}.tar /cluster/work/users/$USER/
+  cp ${input_dir}/inputdata_${version}_${plotname[i]}.tar /cluster/work/users/$USER/
   cd /cluster/work/users/$USER/
   tar xvf inputdata_${version}_${plotname[i]}.tar
 
 ######## Build the case and run the test
-    cd ~/ctsm_cases/2000FATES_${plotname[i]}
+    cd ~/ctsm_cases/${case_name}
     ./case.setup
     ./case.build
     ./case.submit
@@ -214,7 +218,7 @@ then
 ######## Run the case for longer time
   if [ ${run_case_second} == "T" ]
   then
-    cd ~/ctsm_cases/2000FATES_seedclim_${plotname[i]}
+    cd ~/ctsm_cases/${case_name}
     ./xmlchange --file env_run.xml --id STOP_OPTION --val nyears                 # set up the time unit (e.g., nyears, nmonths, ndays).
     ./xmlchange --file env_run.xml --id STOP_N --val 200                         # set up the length of the simulation.
     #./xmlchange --file env_run.xml --id CONTINUE_RUN --val TRUE                 # if you want to continue your simulation from the restart file, set it to TRUE.
@@ -225,6 +229,22 @@ then
   fi
 
 fi
+
+######## Archive experiments
+  if [ ${run_archive} == "T" ]
+  then
+    cd ~/ctsm_cases/${case_name}
+    ./xmlchange --file env_run.xml --id DOUT_S_SAVE_INTERIM_RESTART_FILES --val TRUE                 # set up the time unit (e.g., nyears, nmonths, ndays).   
+    ./case.st_archive
+  fi
+
+######## Merge history files
+  if [ ${merge_hist} == "T" ]
+  then
+    module load NCO/4.9.1-intel-2019b
+    cd $USERWORK/archive/${case_name}/lnd/hist
+    ncrcat ${case_name}*.nc $USERWORK/${case_name}.h0.0001-2000.nc
+  fi
 
 done
 
