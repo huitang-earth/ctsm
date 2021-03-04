@@ -12,7 +12,7 @@ module clm_initializeMod
   use clm_varctl      , only : nsrest, nsrStartup, nsrContinue, nsrBranch
   use clm_varctl      , only : is_cold_start, is_interpolated_start
   use clm_varctl      , only : iulog
-  use clm_varctl      , only : use_lch4, use_cn, use_cndv, use_c13, use_c14, use_fates
+  use clm_varctl      , only : use_lch4, use_cn, use_cndv, use_c13, use_c14, use_fates, use_fates_sp
   use clm_varctl      , only : use_soil_moisture_streams
   use clm_instur      , only : wt_lunit, urban_valid, wt_nat_patch, wt_cft, fert_cft, irrig_method, wt_glc_mec, topo_glc_mec
   use perf_mod        , only : t_startf, t_stopf
@@ -305,7 +305,7 @@ contains
     use restFileMod           , only : restFile_read, restFile_write
     use ndepStreamMod         , only : ndep_init, ndep_interp
     use LakeCon               , only : LakeConInit
-    use SatellitePhenologyMod , only : SatellitePhenologyInit, readAnnualVegetation, interpMonthlyVeg
+    use SatellitePhenologyMod , only : SatellitePhenologyInit, readAnnualVegetation, interpMonthlyVeg, SatellitePhenology
     use SnowSnicarMod         , only : SnowAge_init, SnowOptics_init
     use lnd2atmMod            , only : lnd2atm_minimal
     use NutrientCompetitionFactoryMod, only : create_nutrient_competition_method
@@ -523,6 +523,27 @@ contains
        if (fates_spitfire_mode > scalar_lightning) then
           call clm_fates%Init2(bounds_proc, NLFilename)
        end if
+       
+     if ( use_fates_sp ) then
+
+       call t_startf('interpMonthlyVeg')
+       call interpMonthlyVeg(bounds_proc, canopystate_inst)
+       call t_stopf('interpMonthlyVeg')
+     
+       ! As "clm_drive", "SatellitePhenology" is run in parallel.  
+       !$OMP PARALLEL DO PRIVATE (nc, bounds_clump)
+       do nc = 1,nclumps
+         call get_clump_bounds(nc, bounds_clump)
+         call t_startf('SatellitePhenology')
+         call SatellitePhenology(bounds_clump, filter(nc)%num_nolakep, filter(nc)%nolakep, &
+               water_inst%waterdiagnosticbulk_inst, canopystate_inst)
+         call t_stopf('SatellitePhenology')
+       end do
+       !$OMP END PARALLEL DO
+!      print *, "canopystate_inst%tlai_patch=", canopystate_inst%tlai_patch(filter(nc)%nolakep(1:10))
+
+    end if
+       
     end if
 
     if(use_soil_moisture_streams) then 
