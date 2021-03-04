@@ -33,6 +33,8 @@ module CanopyHydrologyMod
   use WaterTracerUtils        , only : CalcTracerFromBulk
   use ColumnType      , only : col, column_type
   use PatchType       , only : patch, patch_type
+  
+  use EDPftvarcon         , only : EDPftvarcon_inst 
   !
   ! !PUBLIC TYPES:
   implicit none
@@ -528,22 +530,46 @@ contains
              (frac_veg_nosno(p) == 1 .and. (forc_snow(p) + qflx_liq_above_canopy(p)) > 0._r8)
         if (check_point_for_interception_and_excess(p)) then
            ! Coefficient of interception
-           if (use_clm5_fpi) then
-              fpiliq = interception_fraction * tanh(elai(p) + esai(p))
-           else
-              fpiliq = 0.25_r8*(1._r8 - exp(-0.5_r8*(elai(p) + esai(p))))
-           end if
+           
+! BHui
+           ! Moss should have larger water holding capacity?
+           ! Moss do not have elai and esai in strict sense (elai and slai is from FATES), thallus content a better term?
+           ! Snow interception: totally intercepted by the plant, no throughtfall, no protruding of moss from snow layer? 
+           ! What are the key traits determining canopy interception flux? 
+           ! interception_fraction =1 (default), set from namelist parameter        
+           if ( EDPftvarcon_inst%stomatal_model(patch%itype(p)) == 3 ) then ! Moss
+             print *, "moss 1"
+             if (use_clm5_fpi) then
+                fpiliq = interception_fraction * tanh(elai(p) + esai(p)) * 4
+             else
+                fpiliq = 0.25_r8*(1._r8 - exp(-0.5_r8*(elai(p) + esai(p))))
+             end if
+             fpisnow = 1._r8   ! Moss intercept all the snow
+           else if ( EDPftvarcon_inst%stomatal_model(patch%itype(p)) == 4 ) then ! Lichen
+             print *, "lichen_1"
+             if (use_clm5_fpi) then
+                fpiliq = interception_fraction * tanh(elai(p) + esai(p))
+             else
+                fpiliq = 0.25_r8*(1._r8 - exp(-0.5_r8*(elai(p) + esai(p))))
+             end if
+             fpisnow = (1._r8 - exp(-0.5_r8*(elai(p) + esai(p))))  ! Lichen is the same as other vegetation
+           else     
+             if (use_clm5_fpi) then
+               fpiliq = interception_fraction * tanh(elai(p) + esai(p)) * 4
+             else
+               fpiliq = 0.25_r8*(1._r8 - exp(-0.5_r8*(elai(p) + esai(p))))
+             end if
+             fpisnow = (1._r8 - exp(-0.5_r8*(elai(p) + esai(p))))  ! max interception of 1             
+           end if 
+! EHUI           
+             ! Direct throughfall
+             qflx_through_snow(p) = forc_snow(p) * (1._r8-fpisnow)
+             qflx_through_liq(p)  = qflx_liq_above_canopy(p) * (1._r8-fpiliq)
 
-           fpisnow = (1._r8 - exp(-0.5_r8*(elai(p) + esai(p))))  ! max interception of 1
-
-           ! Direct throughfall
-           qflx_through_snow(p) = forc_snow(p) * (1._r8-fpisnow)
-           qflx_through_liq(p)  = qflx_liq_above_canopy(p) * (1._r8-fpiliq)
-
-           ! Canopy interception
-           qflx_intercepted_snow(p) = forc_snow(p) * fpisnow
-           qflx_intercepted_liq(p) = qflx_liq_above_canopy(p) * fpiliq
-
+             ! Canopy interception
+             qflx_intercepted_snow(p) = forc_snow(p) * fpisnow
+             qflx_intercepted_liq(p) = qflx_liq_above_canopy(p) * fpiliq
+           
         else
            ! Note that special landunits will be handled here, in addition to soil points
            ! with frac_veg_nosno == 0.
@@ -744,10 +770,26 @@ contains
         qflx_snocanfall(p) = 0._r8
 
         if (check_point_for_interception_and_excess(p)) then
-           liqcanmx = params_inst%liq_canopy_storage_scalar * (elai(p) + esai(p))
+        
+!BHui   modify liq_canopy_storage_scalar=2 for moss and lichen, default value=0.1, this can be done in clm parameter file in the future.
+! Speciese dependent
+! Moss and Lichen has specific pft number as a varialbe
+           if ( EDPftvarcon_inst%stomatal_model(patch%itype(p)) == 3 .or. EDPftvarcon_inst%stomatal_model(patch%itype(p)) == 4 ) then ! Moss & lichen
+              print *, "moss or lichen 3"
+              liqcanmx = 2._r8 * (elai(p) + esai(p))
+           else
+              liqcanmx = params_inst%liq_canopy_storage_scalar * (elai(p) + esai(p))
+           end if
            qflx_liqcanfall(p) = max((liqcan(p) - liqcanmx)/dtime, 0._r8)
-           snocanmx = params_inst%snow_canopy_storage_scalar * (elai(p) + esai(p))
+           
+           if ( patch%itype(p) == 1 .or. patch%itype(p) == 2 ) then ! Moss & lichen
+              snocanmx = 10._r8 * (elai(p) + esai(p))  ! default = 6
+           else
+              snocanmx = params_inst%snow_canopy_storage_scalar * (elai(p) + esai(p)) 
+           end if
            qflx_snocanfall(p) = max((snocan(p) - snocanmx)/dtime, 0._r8)
+!EHui           
+         
         end if
      end do
 
@@ -900,18 +942,30 @@ contains
      do fp = 1, num_soilp
         p = filter_soilp(fp)
 
-        if (frac_veg_nosno(p) == 1 .and. snocan(p) > 0._r8) then
-           c = patch%column(p)
-           g = patch%gridcell(p)
-
-           qflx_snotempunload(p) = max(0._r8,snocan(p)*(forc_t(c)-270.15_r8)/1.87e5_r8)
-           qflx_snowindunload(p) = 0.5_r8*snocan(p)*forc_wind(g)/1.56e5_r8
-           qflx_snow_unload(p) = min(qflx_snotempunload(p) + qflx_snowindunload(p), snocan(p)/dtime)
-        else
-           qflx_snotempunload(p) = 0._r8
-           qflx_snowindunload(p) = 0._r8
-           qflx_snow_unload(p) = 0._r8
-        end if
+!BHui
+        ! No snow offloading from moss (not) and lichen (yes,use ths same, no change for the moment)   
+        ! Lichen should be very efficient for snow offloading. 
+        ! Lichen should have higher zc in snow burieal function
+        ! Moss very low zc in snow burieal function               
+          if (frac_veg_nosno(p) == 1 .and. snocan(p) > 0._r8) then
+             c = patch%column(p)
+             g = patch%gridcell(p)        
+             if ( EDPftvarcon_inst%stomatal_model(patch%itype(p)) == 3 ) then ! Moss, This might be redundant, as "frac_veg_nosno" will be 0 for moss covered by snow?
+                print *, "moss 2"
+                qflx_snotempunload(p) = 0._r8
+                qflx_snowindunload(p) = 0._r8
+                qflx_snow_unload(p) = 0._r8
+             else     
+                qflx_snotempunload(p) = max(0._r8,snocan(p)*(forc_t(c)-270.15_r8)/1.87e5_r8)
+                qflx_snowindunload(p) = 0.5_r8*snocan(p)*forc_wind(g)/1.56e5_r8
+                qflx_snow_unload(p) = min(qflx_snotempunload(p) + qflx_snowindunload(p), snocan(p)/dtime)
+             end if
+          else
+             qflx_snotempunload(p) = 0._r8
+             qflx_snowindunload(p) = 0._r8
+             qflx_snow_unload(p) = 0._r8
+          end if
+!EHui        
      end do
 
    end subroutine BulkFlux_SnowUnloading
@@ -1153,21 +1207,36 @@ contains
         p = filter_soilp(fp)
         if (frac_veg_nosno(p) == 1) then
            h2ocan = snocan(p) + liqcan(p)
-
-           if (h2ocan > 0._r8) then
-              vegt    = frac_veg_nosno(p)*(elai(p) + esai(p))
-              fwet(p) = (h2ocan / (vegt * params_inst%liq_canopy_storage_scalar))**0.666666666666_r8
-              fwet(p) = min (fwet(p),maximum_leaf_wetted_fraction)   ! Check for maximum limit of fwet
-              if (snocan(p) > 0._r8) then
-                 fcansno(p) = (snocan(p) / (vegt * params_inst%snow_canopy_storage_scalar))**0.15_r8 ! must match snocanmx 
-                 fcansno(p) = min (fcansno(p),1.0_r8)
-              else
-                 fcansno(p) = 0._r8
-              end if
+           if (h2ocan > 0._r8) then           
+!BHui           
+             print *, "check1=", EDPftvarcon_inst%stomatal_model(patch%itype(p))
+             if ( EDPftvarcon_inst%stomatal_model(patch%itype(p)) == 3 .or. EDPftvarcon_inst%stomatal_model(patch%itype(p)) == 4 ) then ! moss or lichen
+                print *, "moss or lichen 2"
+                vegt    = frac_veg_nosno(p)*(elai(p) + esai(p))
+                fwet(p) = (h2ocan / (vegt * 2._r8))
+                fwet(p) = min (fwet(p),1._r8)   ! maximum limit of fwet is 1, not 0.05 as default
+                if (snocan(p) > 0._r8) then
+                   fcansno(p) = (snocan(p) / (vegt * 10._r8)) ! must match snocanmx 
+                   fcansno(p) = min (fcansno(p),1.0_r8)
+                else
+                   fcansno(p) = 0._r8
+                end if
+             else
+                vegt    = frac_veg_nosno(p)*(elai(p) + esai(p))
+                fwet(p) = (h2ocan / (vegt * params_inst%liq_canopy_storage_scalar))**0.666666666666_r8
+                fwet(p) = min (fwet(p),maximum_leaf_wetted_fraction)   ! Check for maximum limit of fwet
+                if (snocan(p) > 0._r8) then
+                   fcansno(p) = (snocan(p) / (vegt * params_inst%snow_canopy_storage_scalar))**0.15_r8 ! must match snocanmx 
+                   fcansno(p) = min (fcansno(p),1.0_r8)
+                else
+                   fcansno(p) = 0._r8
+                end if
+              end if !moss or lichen
+!EHUI
            else
               fwet(p) = 0._r8
               fcansno(p) = 0._r8
-           end if
+           end if ! h2ocan > 0._r8
            fdry(p) = (1._r8-fwet(p))*elai(p)/(elai(p)+esai(p))
         else
            fwet(p) = 0._r8
