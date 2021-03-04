@@ -137,6 +137,7 @@ module CLMFatesInterfaceMod
    use EDCanopyStructureMod  , only : canopy_summarization, update_hlm_dynamics
    use FatesPlantRespPhotosynthMod, only : FatesPlantRespPhotosynthDrive
    use EDAccumulateFluxesMod , only : AccumulateFluxes_ED
+   use EDPhysiologyMod          , only : satellite_phenology
    use FatesSoilBGCFluxMod    , only : FluxIntoLitterPools
    use FatesSoilBGCFluxMod    , only : UnPackNutrientAquisitionBCs
    use FatesPlantHydraulicsMod, only : hydraulics_drive
@@ -848,21 +849,6 @@ module CLMFatesInterfaceMod
 
          end do
 
-         ! Here we use the same logic as the pft_areafrac initialization to get an array with values for each pft
-         ! in FATES. 
-         ! N.B. Fow now these are fixed values pending HLM updates. 
-         if(use_fates_sp)then
-           do ft = natpft_lb,natpft_ub !set of pfts in HLM
-               ! here we are mapping from P space in the HLM to FT space in the sp_input arrays.  
-               p = ft + col%patchi(c) ! for an FT of 1 we want to use 
-               this%fates(nc)%bc_in(s)%hlm_sp_tlai(ft) = canopystate_inst%tlai_patch(p)
-               this%fates(nc)%bc_in(s)%hlm_sp_tsai(ft) = canopystate_inst%tsai_patch(p)
-               this%fates(nc)%bc_in(s)%hlm_sp_htop(ft) = canopystate_inst%htop_patch(p)
-               if(canopystate_inst%htop_patch(p).lt.1.0e-20)then ! zero htop causes inifinite/nans. This is 
-                 this%fates(nc)%bc_in(s)%hlm_sp_htop(ft) = 0.01_r8
-               endif
-           end do ! p
-         end if ! SP
 
          if(use_fates_planthydro)then
             this%fates(nc)%bc_in(s)%hksat_sisl(1:nlevsoil)  = soilstate_inst%hksat_col(c,1:nlevsoil)
@@ -1002,8 +988,10 @@ module CLMFatesInterfaceMod
      integer :: s       ! site index
      integer :: c       ! column index
      integer :: g       ! grid cell 
+     integer  :: ft                        ! plant functional type
 
      real(r8) :: areacheck
+
      call t_startf('fates_wrap_update_hlmfates_dyn')
 
      associate(                                &
@@ -1018,8 +1006,9 @@ module CLMFatesInterfaceMod
          dleaf_patch => canopystate_inst%dleaf_patch, &
          snow_depth => waterdiagnosticbulk_inst%snow_depth_col, &
          frac_sno_eff => waterdiagnosticbulk_inst%frac_sno_eff_col, &
-         frac_veg_nosno_alb => canopystate_inst%frac_veg_nosno_alb_patch)
-
+         frac_veg_nosno_alb => canopystate_inst%frac_veg_nosno_alb_patch, &
+         fwet      => waterdiagnosticbulk_inst%fwet_patch   & ! Input:  [real(r8) (:)   ]  fraction of canopy that is wet (0 to 1)   ! Hui, fwet can also be put in wrap_btran, but then it will be called late  (Line693,CanopyFluxesMod.F90); it can also be put dyanmics_driv, similar to tlai. The new updates of clm will be send to FATES at the same step?
+         )
 
        ! Process input boundary conditions to FATES
        ! --------------------------------------------------------------------------------
@@ -1027,8 +1016,30 @@ module CLMFatesInterfaceMod
           c = this%f2hmap(nc)%fcolumn(s)
           this%fates(nc)%bc_in(s)%snow_depth_si   = snow_depth(c)
           this%fates(nc)%bc_in(s)%frac_sno_eff_si = frac_sno_eff(c)
+          do ifp = 1,this%fates(nc)%sites(s)%youngest_patch%patchno
+             p = ifp+col%patchi(c)
+             this%fates(nc)%bc_in(s)%fwet_pa(ifp)        = fwet(p)     ! wet fraction for moss and lichen
+          end do
+      
+         ! Here we use the same logic as the pft_areafrac initialization to get an array with values for each pft
+         ! in FATES. 
+         ! N.B. Fow now these are fixed values pending HLM updates. 
+        if(use_fates_sp)then
+          do ft = natpft_lb,natpft_ub !set of pfts in HLM
+               ! here we are mapping from P space in the HLM to FT space in the sp_input arrays.  
+               p = ft + col%patchi(c) ! for an FT of 1 we want to use 
+               this%fates(nc)%bc_in(s)%hlm_sp_tlai(ft) = canopystate_inst%tlai_patch(p)
+               this%fates(nc)%bc_in(s)%hlm_sp_tsai(ft) = canopystate_inst%tsai_patch(p)
+               this%fates(nc)%bc_in(s)%hlm_sp_htop(ft) = canopystate_inst%htop_patch(p)
+               if(canopystate_inst%htop_patch(p).lt.1.0e-20)then ! zero htop causes inifinite/nans. This is 
+                 this%fates(nc)%bc_in(s)%hlm_sp_htop(ft) = 0.01_r8
+               endif
+           end do ! p
+           call satellite_phenology(this%fates(nc)%sites(s),this%fates(nc)%bc_in(s))        
+         end if ! SP
+
        end do
-       
+                   
        ! Canopy diagnostics for FATES
        call canopy_summarization(this%fates(nc)%nsites, &
             this%fates(nc)%sites,  &
@@ -1448,7 +1459,8 @@ module CLMFatesInterfaceMod
                ! ------------------------------------------------------------------------
                call this%fates_restart%update_3dpatch_radiation(this%fates(nc)%nsites, &
                                                                 this%fates(nc)%sites, &
-                                                                this%fates(nc)%bc_out)
+                                                                this%fates(nc)%bc_out, &
+                                                                this%fates(nc)%bc_in)
                     
                ! ------------------------------------------------------------------------
                ! Update history IO fields that depend on ecosystem dynamics
@@ -1780,7 +1792,7 @@ module CLMFatesInterfaceMod
          btran       => energyflux_inst%btran_patch         , & ! Output: [real(r8) (:)   ]  transpiration wetness factor (0 to 1) 
          btran2       => energyflux_inst%btran2_patch       , & ! Output: [real(r8) (:)   ]  
          rresis      => energyflux_inst%rresis_patch        , & ! Output: [real(r8) (:,:) ]  root resistance by layer (0-1)  (nlevgrnd) 
-         rootr       => soilstate_inst%rootr_patch          & ! Output: [real(r8) (:,:) ]  Fraction of water uptake in each layer
+         rootr       => soilstate_inst%rootr_patch           & ! Output: [real(r8) (:,:) ]  Fraction of water uptake in each layer
          )
 
         ! -------------------------------------------------------------------------------
@@ -1823,7 +1835,7 @@ module CLMFatesInterfaceMod
               this%fates(nc)%bc_in(s)%eff_porosity_sl(:)  = -999._r8
               this%fates(nc)%bc_in(s)%watsat_sl(:)        = -999._r8
            end if
-
+           
         end do
 
         ! -------------------------------------------------------------------------------
@@ -1986,7 +1998,8 @@ module CLMFatesInterfaceMod
                this%fates(nc)%bc_in(s)%cair_pa(ifp)        = cair(p)        ! Atmospheric CO2 partial pressure (Pa)
                this%fates(nc)%bc_in(s)%rb_pa(ifp)          = rb(p)          ! boundary layer resistance (s/m)
                this%fates(nc)%bc_in(s)%t_veg_pa(ifp)       = t_veg(p)       ! vegetation temperature (Kelvin)     
-               this%fates(nc)%bc_in(s)%tgcm_pa(ifp)        = tgcm(p)        ! air temperature at agcm reference height (kelvin)
+               this%fates(nc)%bc_in(s)%tgcm_pa(ifp)        = tgcm(p)        ! air temperature at agcm reference height (kelvin)                                        
+                            
             end if
          end do
       end do
