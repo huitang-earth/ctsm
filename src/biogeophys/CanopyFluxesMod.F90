@@ -1428,7 +1428,7 @@ contains
          cgrnd(p)  = cgrnds(p) + cgrndl(p)*htvp(c)
 
          ! Update dew accumulation (kg/m2)
-      if (use_mosslichen_mode==0 .or. EDPftvarcon_inst%stomatal_model(patch%itype(p)) == 1 .or. EDPftvarcon_inst%stomatal_model(patch%itype(p)) == 2 ) then ! only non -moss or -lichen, do an update
+      if (use_mosslichen_mode==0 .or. EDPftvarcon_inst%stomatal_model(patch%itype(p)) == 1 .or. EDPftvarcon_inst%stomatal_model(patch%itype(p)) == 2 .or. use_mosslichen_water<2) then ! only non -moss or -lichen, do an update
          if (t_veg(p) > tfrz ) then ! above freezing, update accumulation in liqcan
             if ((qflx_evap_veg(p)-qflx_tran_veg(p))*dtime > liqcan(p)) then ! all liq evap
                ! In this case, all liqcan will evap. Take remainder from snocan
