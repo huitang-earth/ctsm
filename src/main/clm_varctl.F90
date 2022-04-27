@@ -259,7 +259,7 @@ module clm_varctl
                                                              ! 4: Add additional soil layer (not implemented)
   integer, public :: use_mosslichen_photosyn = 1             ! How photosynthesis of moss and lichen are treated
                                                              ! 0: No photosynthesis (both CLM and FATES) (similar to JULES's implementation), 
-                                                             !    Work with both CLM and FATES (focus 11.2021!)
+                                                             !    Work with both CLM and FATES
                                                              ! 1: normal photosynthesis as other vegetation with stomatal control  
                                                              !    This opition will overwrite FATES stomatal control parameter if inconsistent.
                                                              !    Work with mode 0-4, both CLM and FATES
@@ -277,14 +277,16 @@ module clm_varctl
                                                              !    This does not have effect if use_mosslichen_photosyn = 0 or 4
                                                              ! 0: Normal as vegetation layer while doing photosynthesis (mode 0-4)
                                                              ! 1: rewire resistence model between soil-mosslichen-atm (mode 0)
-                                                             ! 2: assume elai+esai = 0.01 while calculating photosynthesis (mode 1-4, use_mosslichen_photosyn=1-3)
-                                                             ! 3: assume TV (moss)=TG while calculating photosynthesis 
+                                                             ! 2: assume TV (moss)=TG while calculating photosynthesis 
                                                              !    (not implemented, might not work) (mode 1-4)
+                                                             ! atmospheric CO2 molar ratio (by volume) (umol/mol)
+  real(r8), public :: mosslichen_elai     = 0.5              ! proportion of elai+esai for calculating photosynthesis (mode 1-4, use_mosslichen_photosyn=1-3)
+                                                             ! other vegetaion: 1, moss or lichen: equal or less than 1
   integer, public :: use_mosslichen_water = 1                ! How water content of moss and lichen is treated 
                                                              ! 0: No special treatment (mode 0 as vegetation (interception),  mode 1-4 as soil water content)
                                                              ! 1: Canopy water interception and interception rate for moss and lichen (mode 0-4)
                                                              ! 2: Water holding capacity of soil (mode 1-4)
-  integer, public :: use_mosslichen_rad = 1                  ! How radiation (albedo) of moss and lichen is represented 
+  integer, public :: use_mosslichen_rad   = 1                ! How radiation (albedo) of moss and lichen is represented 
                                                              ! 0: use default soil radiation scheme for photosynthesis and heat (use_mosslichen_photosyn=0 and 4)
                                                              ! 1: use clm vegetation radiation scheme, no moss and lichen when they are covered by snow
                                                              !   (use_mosslichen_photosyn=1-3)

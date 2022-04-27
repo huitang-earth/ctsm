@@ -16,7 +16,7 @@ module BiogeophysPreFluxCalcsMod
   use LandunitType            , only : lun
   use clm_varcon              , only : spval
   use clm_varpar              , only : nlevgrnd, nlevsno, nlevurb
-  use clm_varctl              , only : use_fates
+  use clm_varctl              , only : use_fates, mosslichen_elai
   use pftconMod               , only : pftcon
   use column_varcon           , only : icol_roof, icol_sunwall, icol_shadewall
   use landunit_varcon         , only : istsoil, istcrop, istice_mec
@@ -317,7 +317,7 @@ contains
        ! Vegetation Emissivity
 
        avmuir = 1._r8
-       emv(p) = 1._r8-exp(-(elai(p)+esai(p))/avmuir)
+       emv(p) = 1._r8-exp(-mosslichen_elai*(elai(p)+esai(p))/avmuir)
 
        ! thm
        thm(p)  = forc_t(c) + 0.0098_r8*forc_hgt_t_patch(p)

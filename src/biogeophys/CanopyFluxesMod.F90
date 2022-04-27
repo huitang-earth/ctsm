@@ -14,7 +14,7 @@ module CanopyFluxesMod
   use shr_log_mod           , only : errMsg => shr_log_errMsg
   use abortutils            , only : endrun
   use clm_varctl            , only : iulog, use_cn, use_lch4, use_c13, use_c14, use_cndv, use_fates, &
-                                     use_luna, use_hydrstress, use_mosslichen_mode, use_mosslichen_photosyn, use_mosslichen_photo_flux
+                                     use_luna, use_hydrstress, use_mosslichen_mode, use_mosslichen_photosyn, use_mosslichen_photo_flux, mosslichen_elai
   use clm_varpar            , only : nlevgrnd, nlevsno
   use clm_varcon            , only : namep 
   use pftconMod             , only : pftcon
@@ -717,12 +717,8 @@ contains
       do f = 1, fn
          p = filterp(f)
          c = patch%column(p)
-         
-         if (use_mosslichen_photo_flux==2) then
-           lt=0.01
-         else
-           lt = min(elai(p)+esai(p), tlsai_crit)
-         end if
+      
+         lt = mosslichen_elai * min(elai(p)+esai(p), tlsai_crit)
          
          egvf =(1._r8 - alpha_aero * exp(-lt)) / (1._r8 - alpha_aero * exp(-tlsai_crit))
          displa(p) = egvf * displa(p)
@@ -859,11 +855,7 @@ contains
             ! Parameterization for variation of csoilc with canopy density from
             ! X. Zeng, University of Arizona
           
-            if (use_mosslichen_photo_flux==2) then
-              w = exp(-(0.01))
-            else
-              w = exp(-(elai(p)+esai(p)))
-            end if
+            w = exp(-mosslichen_elai * (elai(p)+esai(p)))
             
             ! changed by K.Sakaguchi from here
             ! transfer coefficient over bare soil is changed to a local variable
@@ -991,11 +983,7 @@ contains
             ! Moved the original subroutine in-line...
 
             wta    = 1._r8/rah(p,1)             ! air
-            if (use_mosslichen_photo_flux==2) then
-              wtl    = (0.01)/rb(p)    ! leaf
-            else
-              wtl    = (elai(p)+esai(p))/rb(p)    ! leaf
-            end if
+            wtl    = mosslichen_elai * (elai(p)+esai(p))/rb(p)    ! leaf
             
             wtg(p) = 1._r8/rah(p,2)             ! ground
             wtshi  = 1._r8/(wta+wtl+wtg(p))
@@ -1024,11 +1012,7 @@ contains
             
             ! Calculate canopy conductance for methane / oxygen (e.g. stomatal conductance & leaf bdy cond)
             if (use_lch4)    then
-               if (use_mosslichen_photo_flux==2) then
-                  canopy_cond(p) = (laisun(p)/(rb(p)+rssun(p)) + laisha(p)/(rb(p)+rssha(p)))/max(0.01, 0.01_r8)
-               else
-                  canopy_cond(p) = (laisun(p)/(rb(p)+rssun(p)) + laisha(p)/(rb(p)+rssha(p)))/max(elai(p), 0.01_r8)
-               end if
+               canopy_cond(p) = (laisun(p)/(rb(p)+rssun(p)) + laisha(p)/(rb(p)+rssha(p)))/max(mosslichen_elai*elai(p), 0.01_r8)
             end if
 
             efpot = forc_rho(c)*wtl*(qsatl(p)-qaf(p))
@@ -1075,11 +1059,7 @@ contains
             ! Moved the original subroutine in-line...
 
             wtaq    = frac_veg_nosno(p)/raw(p,1)                        ! air
-            if (use_mosslichen_photo_flux==2) then
-              wtlq    = frac_veg_nosno(p)*(0.01)/rb(p) * rpp
-            else
-              wtlq    = frac_veg_nosno(p)*(elai(p)+esai(p))/rb(p) * rpp   ! leaf
-            end if
+            wtlq    = frac_veg_nosno(p)* mosslichen_elai * (elai(p)+esai(p))/rb(p) * rpp   ! leaf
             
             !Litter layer resistance. Added by K.Sakaguchi
             snow_depth_c = params_inst%z_dl ! critical depth for 100% litter burial by snow (=litter thickness)
@@ -1419,6 +1399,7 @@ contains
          ! The weight is the so-called vegetation emissivity, but not that emv is actually an attentuation 
          ! function that goes to zero as LAI (ELAI + ESAI) go to zero.
 
+         ! Hui: emv is related to elai and esai, need special treatment for moss and lichen?
          t_skin_patch(p)  =  emv(p)*t_veg(p)  +  (1._r8 - emv(p))*sqrt(sqrt(lw_grnd))
 
          ! Derivative of soil energy flux with respect to soil temperature
