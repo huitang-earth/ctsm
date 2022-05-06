@@ -273,15 +273,16 @@ module clm_varctl
                                                              ! 4: photosynthesis is called in a different module (e.g., BareGroundFluxesMod) 
                                                              !    instead of CanopyFluxesMod (To much work to do this, not realistic).
                                                              !    This option will only work with mode 1-4 (soil representation), only CLM
-  integer, public :: use_mosslichen_photo_flux= 1            ! How the canopy heat and water fluxes are treated while moss and lichen is doing photosynthesis
+  integer, public :: use_mosslichen_photo_flux= 0            ! How the canopy heat and water fluxes are treated while moss and lichen is doing photosynthesis
                                                              !    This does not have effect if use_mosslichen_photosyn = 0 or 4
                                                              ! 0: Normal as vegetation layer while doing photosynthesis (mode 0-4)
                                                              ! 1: rewire resistence model between soil-mosslichen-atm (mode 0)
-                                                             ! 2: assume TV (moss)=TG while calculating photosynthesis 
+                                                             ! 2: assume TV (moss)=TSOIL(top layer) while calculating photosynthesis
+                                                             ! 3: assume TV (moss)=TG while calculating photosynthesis 
                                                              !    (not implemented, might not work) (mode 1-4)
-                                                             ! atmospheric CO2 molar ratio (by volume) (umol/mol)
-  real(r8), public :: mosslichen_elai     = 0.5              ! proportion of elai+esai for calculating photosynthesis (mode 1-4, use_mosslichen_photosyn=1-3)
-                                                             ! other vegetaion: 1, moss or lichen: equal or less than 1
+  real(r8), public :: mosslichen_elai     = 1.0              ! proportion of elai+esai for calculating photosynthesis (mode 1-4, use_mosslichen_photosyn=1-3)
+                                                             ! other vegetaion: 1 (this must be set to 1 for other vegetation at the moment!); 
+                                                             ! moss or lichen: equal or less than 1
   integer, public :: use_mosslichen_water = 1                ! How water content of moss and lichen is treated 
                                                              ! 0: No special treatment (mode 0 as vegetation (interception),  mode 1-4 as soil water content)
                                                              ! 1: Canopy water interception and interception rate for moss and lichen (mode 0-4)
