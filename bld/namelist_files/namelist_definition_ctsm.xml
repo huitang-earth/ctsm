@@ -703,6 +703,11 @@ switch for biogenic emission from moss and lichen (not implemented yet)
  How water content of moss and lichen is treated
 </entry>
 
+<entry id="mosslichen_elai" type="real" category="physics"
+        group="clm_inparm" valid_values="0-1">
+ Proportion of moss elai+esai used for heat and water fluxes in photosynthetic calculations
+</entry>
+
 <entry id="use_fates_logging" type="logical" category="physics"
         group="clm_inparm" valid_values="" value=".false.">
 Toggle to turn on the logging module (only relevant if FATES is being used).

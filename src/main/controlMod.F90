@@ -235,7 +235,7 @@ contains
           use_mosslichen_mode, use_mosslichen_photosyn,  &
           use_mosslichen_photo_flux, use_mosslichen_water,   &
           use_mosslichen_rad,         &
-          use_mosslichen_bvoc
+          use_mosslichen_bvoc, mosslichen_elai
 
     ! CLM 5.0 nitrogen flags
     namelist /clm_inparm/ use_flexibleCN, use_luna
@@ -737,6 +737,7 @@ contains
     call mpi_bcast (use_mosslichen_photo_flux, 1, MPI_INTEGER, 0, mpicom, ier)
     call mpi_bcast (use_mosslichen_water, 1, MPI_INTEGER, 0, mpicom, ier)
     call mpi_bcast (use_mosslichen_rad, 1, MPI_INTEGER, 0, mpicom, ier)
+    call mpi_bcast (mosslichen_elai, 1, MPI_REAL8, 0, mpicom, ier)
 
     ! flexibleCN nitrogen model
     call mpi_bcast (use_flexibleCN, 1, MPI_LOGICAL, 0, mpicom, ier)
@@ -1093,12 +1094,14 @@ contains
     end if
     
     if (use_mosslichen) then
+       write(iulog, *) '    use_mosslichen = ', use_mosslichen
        write(iulog, *) '    use_mosslichen_mode = ', use_mosslichen_mode
        write(iulog, *) '    use_mosslichen_photosyn = ', use_mosslichen_photosyn
        write(iulog, *) '    use_mosslichen_photo_flux = ', use_mosslichen_photo_flux
        write(iulog, *) '    use_mosslichen_water= ',use_mosslichen_water
        write(iulog, *) '    use_mosslichen_rad = ',use_mosslichen_rad
        write(iulog, *) '    use_mosslichen_bvoc = ', use_mosslichen_bvoc
+       write(iulog, *) '    mosslichen_elai = ', mosslichen_elai
     end if
     
   end subroutine control_print
