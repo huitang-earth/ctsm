@@ -474,6 +474,12 @@ contains
                   errMsg(sourcefile, __LINE__))
           end if
        end if
+       
+       ! Consistency settings for mosslichen_elai
+       if ( (mosslichen_elai <= 0.0_r8) .or. (mosslimosslichen_elaichen_elai > 1.0_r8) ) then
+          call endrun(msg=' ERROR: mosslichen_elai is out of a reasonable range 0-1'//& 
+               errMsg(sourcefile, __LINE__))
+       end if
 
        ! If nfix_timeconst is equal to the junk default value, then it was not specified
        ! by the user namelist and we need to assign it the correct default value. If the 
