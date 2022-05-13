@@ -373,9 +373,12 @@ module CLMFatesInterfaceMod
         
         if(use_mosslichen_rad == 4)then
            pass_mosslichen_undersnow = 1
+        else if(use_mosslichen_rad == 5)then
+           pass_mosslichen_undersnow = 2
         else
            pass_mosslichen_undersnow = 0
         end if
+        
         call set_fates_ctrlparms('use_mosslichen_undersnow',ival=pass_mosslichen_undersnow)
         
         call set_fates_ctrlparms('use_mosslichen_photosyn',ival=use_mosslichen_photosyn)

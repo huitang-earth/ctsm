@@ -361,6 +361,7 @@ contains
           h2osoi_liq    =>    waterstatebulk_inst%h2osoi_liq_col      , & ! Input:  [real(r8)  (:,:) ]  liquid water content (col,lyr) [kg/m2]
           h2osoi_ice    =>    waterstatebulk_inst%h2osoi_ice_col      , & ! Input:  [real(r8)  (:,:) ]  ice lens content (col,lyr) [kg/m2]    
           snw_rds       =>    waterdiagnosticbulk_inst%snw_rds_col         , & ! Input:  [real(r8)  (:,:) ]  snow grain radius (col,lyr) [microns] 
+          snow_depth    =>    waterdiagnosticbulk_inst%snow_depth_col, & ! input: snow depth
 
           mss_cnc_bcphi =>    aerosol_inst%mss_cnc_bcphi_col      , & ! Input:  [real(r8)  (:,:) ]  mass concentration of hydrophilic BC (col,lyr) [kg/kg]
           mss_cnc_bcpho =>    aerosol_inst%mss_cnc_bcpho_col      , & ! Input:  [real(r8)  (:,:) ]  mass concentration of hydrophobic BC (col,lyr) [kg/kg]
@@ -539,7 +540,7 @@ contains
 !        3. how to recognize moss and lichen patch for calculation: this is done in fates not here. (But it is also needed to have mosslichen filter in CLM too.)
 !        4. how to calculate radiation absorption: wrap_sunfrac need to be modified
 
-    if(use_mosslichen_rad == 2 .or. use_mosslichen_rad == 4)then
+    if(use_mosslichen_rad == 2 .or. use_mosslichen_rad == 4 .or. use_mosslichen_rad == 5)then
       if (use_fates) then
         call clm_fates%wrap_mosslichen_radiation(bounds, nc, &
                  num_vegsol, filter_vegsol, &
@@ -572,15 +573,22 @@ contains
        
        ! sum up soil and non-vascular plant albedo
        do c=bounds%begc,bounds%endc
-          albsfc(c,:)     = albsoi(c,:)*(1-wtcol_nv(c,:))+albsfc_nv(c,:)        ! Weighted average of moss/lichen albedo and soil albedo
-          albsfc_d(c,:)   = albsod(c,:)*(1-wtcol_nv(c,:))+albsfc_nv_d(c,:)
+          if(use_mosslichen_rad == 2 .or. use_mosslichen_rad == 4 .or. (use_mosslichen_rad == 5 .and. snow_depth(c)>0.0))then
+             albsfc(c,:)     = albsoi(c,:)*(1-wtcol_nv(c,:))+albsfc_nv(c,:)        ! Weighted average of moss/lichen albedo and soil albedo
+             albsfc_d(c,:)   = albsod(c,:)*(1-wtcol_nv(c,:))+albsfc_nv_d(c,:)
+          else
+             albsfc(c,:)     = albsoi(c,:)
+          end if 
        end do
        print *, "test_rad4: albsoi, albsfc=", albsoi(:,:), albsfc(:,:), albsod(:,:), albsfc_d(:,:)
 
        do c=bounds%begc,bounds%endc
-         albsoi(c,:)=albsfc(c,:) 
-         albsod(c,:)=albsfc_d(c,:)
+          if(use_mosslichen_rad == 2 .or. use_mosslichen_rad == 4 .or. (use_mosslichen_rad == 5 .and. snow_depth(c)>0.0))then
+             albsoi(c,:)=albsfc(c,:) 
+             albsod(c,:)=albsfc_d(c,:)
+          end if
        end do
+       
     else
       do c=bounds%begc,bounds%endc
           albsfc(c,:)     = albsoi(c,:)
