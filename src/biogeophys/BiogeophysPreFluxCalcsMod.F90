@@ -16,7 +16,7 @@ module BiogeophysPreFluxCalcsMod
   use LandunitType            , only : lun
   use clm_varcon              , only : spval
   use clm_varpar              , only : nlevgrnd, nlevsno, nlevurb
-  use clm_varctl              , only : use_fates, mosslichen_elai
+  use clm_varctl              , only : use_fates, mosslichen_elai, use_mosslichen_rad
   use pftconMod               , only : pftcon
   use column_varcon           , only : icol_roof, icol_sunwall, icol_shadewall
   use landunit_varcon         , only : istsoil, istcrop, istice_mec
@@ -208,6 +208,7 @@ contains
          forc_hgt_t_patch =>    frictionvel_inst%forc_hgt_t_patch     , & ! Input: [real(r8) (:)   ] observational height of temperature at patch level [m]
          frac_sno_eff     =>    waterdiagnosticbulk_inst%frac_sno_eff_col      , & ! Input:  [real(r8) (:)   ] eff. fraction of ground covered by snow (0 to 1)
          frac_sno         =>    waterdiagnosticbulk_inst%frac_sno_col          , & ! Input:  [real(r8) (:)   ] fraction of ground covered by snow (0 to 1)
+         snow_depth       =>    waterdiagnosticbulk_inst%snow_depth_col               , & ! Input:  [real(r8) (:)   ]  snow height (m)
          frac_h2osfc      =>    waterdiagnosticbulk_inst%frac_h2osfc_col       , & ! Input:  [real(r8) (:)   ] fraction of ground covered by surface water (0 to 1)
          h2osoi_ice       =>    waterstatebulk_inst%h2osoi_ice_col        , & ! Input:  [real(r8) (:,:) ] ice lens (kg/m2)
          h2osoi_liq       =>    waterstatebulk_inst%h2osoi_liq_col        , & ! Input:  [real(r8) (:,:) ] liquid water (kg/m2)
@@ -317,8 +318,16 @@ contains
        ! Vegetation Emissivity
 
        avmuir = 1._r8
-       emv(p) = 1._r8-exp(-mosslichen_elai*(elai(p)+esai(p))/avmuir)
+       
+       if(use_mosslichen_rad == 2 .or. use_mosslichen_rad == 4 .or. (use_mosslichen_rad == 5 .and. snow_depth(c)>0.0))then
+         ! if assume mosslichen undersnow (option 2 and 4), the effect of moss canopy should be minimized througout the year.
+         ! For option 5, the effect of moss canopy during snow free period can be as assumed by "mosslichen_elai". 
+         emv(p) = 1._r8-exp(-0.001_r8*(elai(p)+esai(p))/avmuir)
+       else
+         emv(p) = 1._r8-exp(-mosslichen_elai*(elai(p)+esai(p))/avmuir)
+       end if
 
+       
        ! thm
        thm(p)  = forc_t(c) + 0.0098_r8*forc_hgt_t_patch(p)
     end do

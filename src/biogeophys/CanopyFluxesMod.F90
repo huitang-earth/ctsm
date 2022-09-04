@@ -14,7 +14,7 @@ module CanopyFluxesMod
   use shr_log_mod           , only : errMsg => shr_log_errMsg
   use abortutils            , only : endrun
   use clm_varctl            , only : iulog, use_cn, use_lch4, use_c13, use_c14, use_cndv, use_fates, &
-                                     use_luna, use_hydrstress, use_mosslichen_mode, use_mosslichen_photosyn, use_mosslichen_photo_flux, use_mosslichen_water, mosslichen_elai
+                                     use_luna, use_hydrstress, use_mosslichen_mode, use_mosslichen_photosyn, use_mosslichen_photo_flux, use_mosslichen_water, mosslichen_elai,use_mosslichen_rad
   use clm_varpar            , only : nlevgrnd, nlevsno
   use clm_varcon            , only : namep 
   use pftconMod             , only : pftcon
@@ -407,6 +407,7 @@ contains
     real(r8) :: dt_veg_temp(bounds%begp:bounds%endp)
     integer  :: iv
     logical  :: is_end_day                               ! is end of current day
+    real(r8) :: mosslichen_elai_tmp                      ! temporary mosslichen_elai
 
     integer :: dummy_to_make_pgi_happy
     !------------------------------------------------------------------------------
@@ -718,7 +719,13 @@ contains
          p = filterp(f)
          c = patch%column(p)
       
-         lt = mosslichen_elai * min(elai(p)+esai(p), tlsai_crit)
+         if(use_mosslichen_rad == 2 .or. use_mosslichen_rad == 4 .or. (use_mosslichen_rad == 5 .and. snow_depth(c)>0.0))then
+            mosslichen_elai_tmp=0.001_r8
+         else
+            mosslichen_elai_tmp=mosslichen_elai
+         end if
+         
+         lt = mosslichen_elai_tmp * min(elai(p)+esai(p), tlsai_crit)
          
          egvf =(1._r8 - alpha_aero * exp(-lt)) / (1._r8 - alpha_aero * exp(-tlsai_crit))
          displa(p) = egvf * displa(p)
@@ -855,7 +862,7 @@ contains
             ! Parameterization for variation of csoilc with canopy density from
             ! X. Zeng, University of Arizona
           
-            w = exp(-mosslichen_elai * (elai(p)+esai(p)))
+            w = exp(-mosslichen_elai_tmp * (elai(p)+esai(p)))
             
             ! changed by K.Sakaguchi from here
             ! transfer coefficient over bare soil is changed to a local variable
@@ -983,7 +990,7 @@ contains
             ! Moved the original subroutine in-line...
 
             wta    = 1._r8/rah(p,1)             ! air
-            wtl    = mosslichen_elai * (elai(p)+esai(p))/rb(p)    ! leaf
+            wtl    = mosslichen_elai_tmp * (elai(p)+esai(p))/rb(p)    ! leaf
             
             wtg(p) = 1._r8/rah(p,2)             ! ground
             wtshi  = 1._r8/(wta+wtl+wtg(p))
@@ -1012,7 +1019,7 @@ contains
             
             ! Calculate canopy conductance for methane / oxygen (e.g. stomatal conductance & leaf bdy cond)
             if (use_lch4)    then
-               canopy_cond(p) = (laisun(p)/(rb(p)+rssun(p)) + laisha(p)/(rb(p)+rssha(p)))/max(mosslichen_elai*elai(p), 0.01_r8)
+               canopy_cond(p) = (laisun(p)/(rb(p)+rssun(p)) + laisha(p)/(rb(p)+rssha(p)))/max(mosslichen_elai_tmp*elai(p), 0.01_r8)
             end if
 
             efpot = forc_rho(c)*wtl*(qsatl(p)-qaf(p))
@@ -1059,7 +1066,7 @@ contains
             ! Moved the original subroutine in-line...
 
             wtaq    = frac_veg_nosno(p)/raw(p,1)                        ! air
-            wtlq    = frac_veg_nosno(p)* mosslichen_elai * (elai(p)+esai(p))/rb(p) * rpp   ! leaf
+            wtlq    = frac_veg_nosno(p)* mosslichen_elai_tmp * (elai(p)+esai(p))/rb(p) * rpp   ! leaf
             
             !Litter layer resistance. Added by K.Sakaguchi
             snow_depth_c = params_inst%z_dl ! critical depth for 100% litter burial by snow (=litter thickness)
