@@ -14,7 +14,7 @@ module WaterStateType
   use decompMod      , only : bounds_type
   use decompMod      , only : BOUNDS_SUBGRID_PATCH, BOUNDS_SUBGRID_COLUMN, BOUNDS_SUBGRID_GRIDCELL
   use clm_varctl     , only : use_bedrock, iulog
-  use clm_varctl     , only : use_fates_planthydro
+  use clm_varctl     , only : use_fates_planthydro, use_mosslichen, use_mosslichen_mode, mosslichen_elai
   use clm_varpar     , only : nlevgrnd, nlevsoi, nlevurb, nlevsno   
   use clm_varcon     , only : spval, namec
   use LandunitType   , only : lun                
@@ -40,7 +40,7 @@ module WaterStateType
      real(r8), pointer :: h2osfc_col             (:)   ! col surface water (mm H2O)
      real(r8), pointer :: snocan_patch           (:)   ! patch canopy snow water (mm H2O)
      real(r8), pointer :: liqcan_patch           (:)   ! patch canopy liquid water (mm H2O)
-
+     real(r8), pointer :: h2o_moss_col           (:)   ! col moss water content (kg/m2)
      real(r8), pointer :: wa_col                 (:)   ! col water in the unconfined aquifer (mm)
 
      ! For the following dynbal baseline variables: positive values are subtracted to
@@ -139,6 +139,9 @@ contains
          container = tracer_vars, &
          bounds = bounds, subgrid_level = BOUNDS_SUBGRID_PATCH)
     call AllocateVar1d(var = this%h2osfc_col, name = 'h2osfc_col', &
+         container = tracer_vars, &
+         bounds = bounds, subgrid_level = BOUNDS_SUBGRID_COLUMN)
+    call AllocateVar1d(var = this%h2o_moss_col, name = 'h2o_moss_col', &
          container = tracer_vars, &
          bounds = bounds, subgrid_level = BOUNDS_SUBGRID_COLUMN)
     call AllocateVar1d(var = this%wa_col, name = 'wa_col', &
@@ -258,7 +261,17 @@ contains
          avgflag='A', &
          long_name=this%info%lname('surface water depth'), &
          ptr_col=this%h2osfc_col)
-
+    
+    if(use_mosslichen)then
+      this%h2o_moss_col(begc:endc) = spval
+      call hist_addfld1d ( &
+           fname=this%info%fname('H2O_MOSS'),  &
+           units='kg/m2',  &
+           avgflag='A', &
+           long_name=this%info%lname('moss water content'), &
+           ptr_col=this%h2o_moss_col)
+    endif
+    
     this%wa_col(begc:endc) = spval
     call hist_addfld1d (fname=this%info%fname('WA'),  units='mm',  &
          avgflag='A', &
@@ -317,7 +330,9 @@ contains
       this%h2osfc_col(bounds%begc:bounds%endc) = 0._r8
       this%snocan_patch(bounds%begp:bounds%endp) = 0._r8
       this%liqcan_patch(bounds%begp:bounds%endp) = 0._r8
-
+      if(use_mosslichen)then
+        this%h2o_moss_col(begc:endc) = 0._r8
+      endif
 
       !--------------------------------------------
       ! Set soil water
@@ -548,9 +563,20 @@ contains
          long_name=this%info%lname('surface water'), &
          units='kg/m2', &
          interpinic_flag='interp', readvar=readvar, data=this%h2osfc_col)
+      
     if (flag=='read' .and. .not. readvar) then
        this%h2osfc_col(bounds%begc:bounds%endc) = 0.0_r8
     end if
+    
+    if(use_mosslichen)then
+      call restartvar(ncid=ncid, flag=flag, &
+            varname=this%info%fname('H2O_MOSS'), &
+            xtype=ncd_double,  &
+            dim1name='column', &
+            long_name=this%info%lname('moss water content water'), &
+            units='kg/m2', &
+            interpinic_flag='interp', readvar=readvar, data=this%h2o_moss_col)
+    endif
 
     call restartvar(ncid=ncid, flag=flag, &
          varname=this%info%fname('H2OSNO_NO_LAYERS:H2OSNO'), &
