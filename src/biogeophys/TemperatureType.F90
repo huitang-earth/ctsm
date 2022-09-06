@@ -7,7 +7,7 @@ module TemperatureType
   use shr_log_mod     , only : errMsg => shr_log_errMsg
   use decompMod       , only : bounds_type
   use abortutils      , only : endrun
-  use clm_varctl      , only : use_cndv, iulog, use_luna, use_crop
+  use clm_varctl      , only : use_cndv, iulog, use_luna, use_crop, use_mosslichen, use_mosslichen_mode, mosslichen_elai
   use clm_varpar      , only : nlevsno, nlevgrnd, nlevlak, nlevlak, nlevurb
   use clm_varcon      , only : spval, ispval
   use GridcellType    , only : grc
@@ -20,7 +20,6 @@ module TemperatureType
   private
   !
   type, public :: temperature_type
-
      ! Temperatures
      real(r8), pointer :: t_veg_patch              (:)   ! patch vegetation temperature (Kelvin)
      real(r8), pointer :: t_skin_patch             (:)   ! patch skin temperature (Kelvin)
@@ -34,6 +33,7 @@ module TemperatureType
      real(r8), pointer :: t_h2osfc_bef_col         (:)   ! col surface water temperature from time-step before
      real(r8), pointer :: t_ssbef_col              (:,:) ! col soil/snow temperature before update (-nlevsno+1:nlevgrnd)
      real(r8), pointer :: t_soisno_col             (:,:) ! col soil temperature (Kelvin)  (-nlevsno+1:nlevgrnd)
+     real(r8), pointer :: t_moss_col               (:)   ! col moss temperature (Kelvin)
      real(r8), pointer :: tsl_col                  (:)   ! col temperature of near-surface soil layer (Kelvin)
      real(r8), pointer :: t_soi10cm_col            (:)   ! col soil temperature in top 10cm of soil (Kelvin)
      real(r8), pointer :: t_soi17cm_col            (:)   ! col soil temperature in top 17cm of soil (Kelvin)
@@ -206,6 +206,7 @@ contains
     allocate(this%t_h2osfc_bef_col         (begc:endc))                      ; this%t_h2osfc_bef_col         (:)   = nan
     allocate(this%t_ssbef_col              (begc:endc,-nlevsno+1:nlevgrnd))  ; this%t_ssbef_col              (:,:) = nan
     allocate(this%t_soisno_col             (begc:endc,-nlevsno+1:nlevgrnd))  ; this%t_soisno_col             (:,:) = nan
+    allocate(this%t_moss_col               (begc:endc))                      ; this%t_moss_col               (:)   = nan
     allocate(this%t_lake_col               (begc:endc,1:nlevlak))            ; this%t_lake_col               (:,:) = nan
     allocate(this%t_grnd_col               (begc:endc))                      ; this%t_grnd_col               (:)   = nan
     allocate(this%t_grnd_r_col             (begc:endc))                      ; this%t_grnd_r_col             (:)   = nan
@@ -317,7 +318,7 @@ contains
     call hist_addfld1d (fname='TH2OSFC',  units='K',  &
          avgflag='A', long_name='surface water temperature', &
          ptr_col=this%t_h2osfc_col)
-
+    
     this%t_grnd_u_col(begc:endc) = spval
     call hist_addfld1d (fname='TG_U', units='K',  &
          avgflag='A', long_name='Urban ground temperature', &
@@ -609,8 +610,8 @@ contains
        call hist_addfld1d (fname='GDD1020', units='ddays', &
             avgflag='A', long_name='Twenty year average of growing degree days base 10C from planting', &
             ptr_patch=this%gdd1020_patch, default='inactive')
-
     end if
+    
     if(use_luna)then
          call hist_addfld1d (fname='TVEGD10', units='Kelvin', &
             avgflag='A', long_name='10 day running mean of patch daytime vegetation temperature', &
@@ -619,7 +620,13 @@ contains
             avgflag='A', long_name='10 day running mean of patch night-time vegetation temperature', &
             ptr_patch=this%t_veg10_night_patch, default='inactive')
     endif
-
+    
+    if(use_mosslichen)then
+      this%t_moss_col(begc:endc) = spval
+      call hist_addfld1d (fname='T_MOSS',  units='K',  &
+           avgflag='A', long_name='moss temperature', &
+           ptr_col=this%t_moss_col)
+    endif
 
   end subroutine InitHistory
 
@@ -776,6 +783,11 @@ contains
       ! Set t_h2osfc_col
 
       this%t_h2osfc_col(bounds%begc:bounds%endc)  = 274._r8
+      
+      if(use_mosslichen)then
+         this%t_moss_col(bounds%begc:bounds%endc) = 274._r8  !Hui: not critical what cold intial temperature is for moss?
+      endif
+
 
       ! Set t_veg, t_ref2m, t_ref2m_u and tref2m_r
 
@@ -894,9 +906,17 @@ contains
          dim1name='column', &
          long_name='surface water temperature', units='K', &
          interpinic_flag='interp', readvar=readvar, data=this%t_h2osfc_col)
+         
     if (flag=='read' .and. .not. readvar) then
        this%t_h2osfc_col(bounds%begc:bounds%endc) = 274.0_r8
     end if
+    
+    if (use_mosslichen) then
+      call restartvar(ncid=ncid, flag=flag, varname='T_MOSS', xtype=ncd_double,  &
+           dim1name='column', &
+           long_name='moss temperature', units='K', &
+           interpinic_flag='interp', readvar=readvar, data=this%t_moss_col)
+    endif
 
     call restartvar(ncid=ncid, flag=flag, varname='T_LAKE', xtype=ncd_double,  &
          dim1name='column', dim2name='levlak', switchdim=.true., &
