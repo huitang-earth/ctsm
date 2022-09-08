@@ -12,7 +12,7 @@ module SoilTemperatureMod
   use decompMod               , only : bounds_type
   use abortutils              , only : endrun
   use perf_mod                , only : t_startf, t_stopf
-  use clm_varctl              , only : iulog, use_mosslichen_mode, use_mosslichen_photosyn
+  use clm_varctl              , only : iulog, use_mosslichen, mosslichen_elai, use_mosslichen_rad
   use UrbanParamsType         , only : urbanparams_type
   use UrbanTimeVarType        , only : urbantv_type
   use atm2lndType             , only : atm2lnd_type
@@ -27,6 +27,8 @@ module SoilTemperatureMod
   use LandunitType            , only : lun
   use ColumnType              , only : col
   use PatchType               , only : patch
+  use EDPftvarcon             , only : EDPftvarcon_inst
+  
   !
   ! !PUBLIC TYPES:
   implicit none
@@ -113,7 +115,7 @@ contains
     !
     ! !USES:
     use clm_time_manager         , only : get_step_size_real
-    use clm_varpar               , only : nlevsno, nlevgrnd, nlevurb
+    use clm_varpar               , only : nlevsno, nlevgrnd, nlevurb,max_patch_per_col
     use clm_varctl               , only : iulog
     use clm_varcon               , only : cnfac, cpice, cpliq, denh2o
     use landunit_varcon          , only : istsoil, istcrop
@@ -141,7 +143,7 @@ contains
     type(temperature_type)         ,  intent(inout) :: temperature_inst
     !
     ! !LOCAL VARIABLES:
-    integer  :: j,c,l,g,pi                                               ! indices
+    integer  :: j,c,l,g,pi,p                                               ! indices
     integer  :: fc                                                       ! lake filtered column indices
     integer  :: fl                                                       ! urban filtered landunit indices
     integer  :: jtop(bounds%begc:bounds%endc)                            ! top level at each column
@@ -169,6 +171,12 @@ contains
     real(r8) :: hs_top_snow(bounds%begc:bounds%endc)                     ! heat flux on top snow layer [W/m2]
     real(r8) :: hs_h2osfc(bounds%begc:bounds%endc)                       ! heat flux on standing water [W/m2]
     integer  :: jbot(bounds%begc:bounds%endc)                            ! bottom level at each column
+    
+    real(r8) :: t_moss_col_tmp(bounds%begc:bounds%endc)                  ! temporary moss temperature [K] [col]
+    real(r8) :: wt_moss_col(bounds%begc:bounds%endc)                     ! temporary weight of moss cover in a column  [col]
+    real(r8) :: mosslichen_elai_tmp(bounds%begc:bounds%endc)             ! temporary mosslichen_elai
+    
+    
     !-----------------------------------------------------------------------
 
     associate(                                                                &
@@ -193,14 +201,12 @@ contains
          snow_depth              => waterdiagnosticbulk_inst%snow_depth_col          , & ! Input:  [real(r8) (:)   ]  snow height (m)                         
          h2osfc                  => waterstatebulk_inst%h2osfc_col                   , & ! Input:  [real(r8) (:)   ]  surface water (mm)                      
          frac_h2osfc             => waterdiagnosticbulk_inst%frac_h2osfc_col         , & ! Input:  [real(r8) (:)   ]  fraction of ground covered by surface water (0 to 1)
-
          
          sabg_soil               => solarabs_inst%sabg_soil_patch           , & ! Input:  [real(r8) (:)   ]  solar radiation absorbed by soil (W/m**2)
          sabg_snow               => solarabs_inst%sabg_snow_patch           , & ! Input:  [real(r8) (:)   ]  solar radiation absorbed by snow (W/m**2)
          sabg_chk                => solarabs_inst%sabg_chk_patch            , & ! Output: [real(r8) (:)   ]  sum of soil/snow using current fsno, for balance check
          sabg_lyr                => solarabs_inst%sabg_lyr_patch            , & ! Input:  [real(r8) (:,:) ]  absorbed solar radiation (pft,lyr) [W/m2]
          sabg                    => solarabs_inst%sabg_patch                , & ! Input:  [real(r8) (:)   ]  solar radiation absorbed by ground (W/m**2)
-
          
          htvp                    => energyflux_inst%htvp_col                , & ! Input:  [real(r8) (:)   ]  latent heat of vapor of water (or sublimation) [j/kg]
          cgrnd                   => energyflux_inst%cgrnd_patch             , & ! Input:  [real(r8) (:)   ]  deriv. of soil energy flux wrt to soil temp [w/m2/k]
@@ -229,6 +235,8 @@ contains
          emg                     => temperature_inst%emg_col                , & ! Input:  [real(r8) (:)   ]  ground emissivity                       
          tssbef                  => temperature_inst%t_ssbef_col            , & ! Input:  [real(r8) (:,:) ]  temperature at previous time step [K] 
          t_h2osfc                => temperature_inst%t_h2osfc_col           , & ! Output: [real(r8) (:)   ]  surface water temperature               
+         t_moss_col              => temperature_inst%t_moss_col             , & ! Output: [real(r8) (:)   ]  diagnostic moss temperature               
+         t_veg_patch             => temperature_inst%t_veg_patch            , & ! Output: [real(r8) (:)   ]  vegetation temperature (Kelvin)                                       
          t_soisno                => temperature_inst%t_soisno_col           , & ! Output: [real(r8) (:,:) ]  soil temperature [K]             
          t_grnd                  => temperature_inst%t_grnd_col             , & ! Output: [real(r8) (:)   ]  ground surface temperature [K]          
          t_building              => temperature_inst%t_building_lun         , & ! Output: [real(r8) (:)   ]  internal building air temperature [K]       
@@ -511,8 +519,44 @@ contains
             else
                t_grnd(c) = t_soisno(c,1)
             end if
-         endif
+         endif         
       end do
+      
+      if (use_mosslichen) then
+        
+        t_moss_col_tmp(begc:endc) = 0._r8
+        wt_moss_col(begc:endc)    = 0._r8
+        do pi = 1,max_patch_per_col
+           do fc = 1,num_nolakec
+              c = filter_nolakec(fc)
+              if ( pi <= col%npatches(c) ) then
+                 p = col%patchi(c) + pi - 1
+                 !l = patch%landunit(p)
+                 !g = patch%gridcell(p)
+                 if ( EDPftvarcon_inst%stomatal_model(patch%itype(p)) == 3 .or. EDPftvarcon_inst%stomatal_model(patch%itype(p)) == 4 ) then ! moss or lichen
+                   ! Hui: add the calculation of t_moss_col
+                   t_moss_col_tmp(c) = t_moss_col_tmp(c) + t_veg_patch(p)*patch%wtcol(p)        ! 
+                   wt_moss_col(c)= wt_moss_col(c)+ patch%wtcol(p)
+                 end if
+               endif
+           end do
+         end do
+         
+         do fc = 1,num_nolakec
+             c = filter_nolakec(fc)
+             if(use_mosslichen_rad == 2 .or. use_mosslichen_rad == 4 .or. (use_mosslichen_rad == 5 .and. snow_depth(c)>0.0))then
+                 mosslichen_elai_tmp(c)=0.001_r8                     ! here mossliche_elai_tmp is column variable, which is enough for the purpose
+             else
+                 mosslichen_elai_tmp(c)=mosslichen_elai
+             end if
+          end do
+          
+          do fc = 1,num_nolakec
+              c = filter_nolakec(fc)
+              ! Hui: add the calculation of t_moss_col
+              t_moss_col(c) = t_moss_col_tmp(c)*mosslichen_elai_tmp(c)/wt_moss_col(c) + t_soisno(c,1)* (1-mosslichen_elai_tmp(c))
+          end do
+       end if 
 
       ! Initialize soil heat content
 
