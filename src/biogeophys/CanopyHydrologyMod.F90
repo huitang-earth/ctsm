@@ -17,7 +17,7 @@ module CanopyHydrologyMod
   use decompMod       , only : bounds_type
   use abortutils      , only : endrun
   use clm_time_manager, only : get_step_size_real
-  use clm_varctl      , only : iulog, use_mosslichen_water
+  use clm_varctl      , only : iulog, use_mosslichen_water, mosslichen_elai, use_mosslichen_rad, use_mosslichen
   use column_varcon   , only : icol_sunwall, icol_shadewall
   use subgridAveMod   , only : p2c
   use LandunitType    , only : lun                
@@ -26,6 +26,7 @@ module CanopyHydrologyMod
   use CanopyStateType , only : canopystate_type
   use TemperatureType , only : temperature_type
   use WaterType       , only : water_type
+  use SoilStateType   , only : soilstate_type
   use WaterFluxBulkType       , only : waterfluxbulk_type
   use Wateratm2lndBulkType    , only : wateratm2lndbulk_type
   use WaterStateBulkType      , only : waterstatebulk_type
@@ -34,7 +35,8 @@ module CanopyHydrologyMod
   use ColumnType      , only : col, column_type
   use PatchType       , only : patch, patch_type
   
-  use EDPftvarcon         , only : EDPftvarcon_inst 
+  use EDPftvarcon         , only : EDPftvarcon_inst
+  use clm_varpar          , only : max_patch_per_col 
   !
   ! !PUBLIC TYPES:
   implicit none
@@ -190,16 +192,22 @@ contains
      type(column_type)      , intent(in)    :: col
      type(canopystate_type) , intent(in)    :: canopystate_inst
      type(atm2lnd_type)     , intent(in)    :: atm2lnd_inst
+     type(soilstate_type)   , intent(in)    :: soilstate_inst
      type(water_type)       , intent(inout) :: water_inst
      !
      ! !LOCAL VARIABLES:
-     integer  :: i     ! index of water tracer or bulk
+     integer  :: i, pi, fc, p,     ! index of water tracer or bulk
      real(r8) :: dtime ! land model time step (sec)
 
      real(r8) :: qflx_liq_above_canopy_patch(bounds%begp:bounds%endp)        ! liquid water input above canopy (rain plus irrigation) [mm/s]
      real(r8) :: tracer_qflx_liq_above_canopy_patch(bounds%begp:bounds%endp) ! For one tracer: liquid water input above canopy (rain plus irrigation) [mm/s]
      real(r8) :: forc_snow_patch(bounds%begp:bounds%endp)                    ! atm snow, patch-level [mm/s]
      real(r8) :: tracer_forc_snow_patch(bounds%begp:bounds%endp)             ! For one tracer: atm snow, patch-level [mm/s]
+     real(r8) :: h2o_moss_col_tmp(bounds%begc:bounds%endc)                   ! temporary moss water content [kg/m2] [col]
+     real(r8) :: wt_moss_col(bounds%begc:bounds%endc)                        ! temporary weight of moss cover in a column  [col]
+     real(r8) :: fwet_moss_col_tmp(bounds%begc:bounds%endc)                  ! temporary fwet for moss vegetation parts
+     real(r8) :: mosslichen_elai_tmp(bounds%begc:bounds%endc)                ! temporary mosslichen_elai
+
 
      logical  :: check_point_for_interception_and_excess(bounds%begp:bounds%endp)
 
@@ -427,6 +435,53 @@ contains
           fwet           = b_waterdiagnostic_inst%fwet_patch(begp:endp), &
           fdry           = b_waterdiagnostic_inst%fdry_patch(begp:endp), &
           fcansno        = b_waterdiagnostic_inst%fcansno_patch(begp:endp))
+          
+      
+      if (use_mosslichen) then
+            
+         h2o_moss_col_tmp(begc:endc) = 0._r8
+         wt_moss_col(begc:endc)    = 0._r8
+         fwet_moss_col_tmp(begc:endc) = 0._r8
+         do pi = 1,max_patch_per_col
+            do fc = 1,num_nolakec
+              c = filter_nolakec(fc)
+              if ( pi <= col%npatches(c) ) then
+                p = col%patchi(c) + pi - 1
+                !l = patch%landunit(p)
+                !g = patch%gridcell(p)
+                if ( EDPftvarcon_inst%stomatal_model(patch%itype(p)) == 3 .or. EDPftvarcon_inst%stomatal_model(patch%itype(p)) == 4 ) then ! moss or lichen
+                  ! Hui: add the calculation of h2o_moss_col
+                  h2o_moss_col_tmp(c) = h2o_moss_col_tmp(c) + (b_waterstate_inst%snocan_patch(p)+b_waterstate_inst%liqcan_patch(p))*patch%wtcol(p)        ! 
+                  wt_moss_col(c)= wt_moss_col(c)+ patch%wtcol(p)
+                  ! Weighted average of wet fraction might not be accurate if the maximum capacity for each patch differs.
+                  fwet_moss_col_tmp(c)= fwet_moss_col_tmp(c)+ b_waterdiagnostic_inst%fwet_patch(p)*patch%wtcol(p)
+                end if
+              endif
+            end do
+         end do
+             
+         do fc = 1,num_nolakec
+           c = filter_nolakec(fc)
+           if(use_mosslichen_rad == 2 .or. use_mosslichen_rad == 4 .or. (use_mosslichen_rad == 5 .and. b_waterdiagnostic_inst%snow_depth_col(c)>0.0))then
+              mosslichen_elai_tmp(c)=0.001_r8                     ! here mossliche_elai_tmp is column variable, which is enough for the purpose
+           else
+              mosslichen_elai_tmp(c)=mosslichen_elai
+           end if
+         end do
+         
+         do fc = 1,num_nolakec
+            c = filter_nolakec(fc)
+            ! Hui: add the calculation of h2o_moss_col
+            ! convert canopy water (mm) to water mass (kg/m2): They are equivalent in fact
+            b_waterstate_inst%h2o_moss_col(c) = h2o_moss_col_tmp(c)*mosslichen_elai_tmp(c)/wt_moss_col(c) + (b_waterstate_inst%h2osoi_liq(c,1)+b_waterstate_inst%h2osoi_ice(c,1))* (1-mosslichen_elai_tmp(c))
+            ! The unit of watsat is (m3/m3), need to use volumetric soil water content here
+            b_waterdiagnostic_inst%fwet_moss_col(c) = fwet_moss_col_tmp(c)*mosslichen_elai_tmp(c)/wt_moss_col(c) + b_waterstate_inst%h2osoi_vol_col(c,1)/soilstate_inst%watsat_col(c,1) * (1-mosslichen_elai_tmp(c))
+         end do
+         
+!         params_inst%liq_canopy_storage_scalar * (elai(p) + esai(p))
+!         params_inst%snow_canopy_storage_scalar * (elai(p) + esai(p))
+      
+      end if
 
      end associate
 

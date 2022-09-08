@@ -1030,7 +1030,7 @@ module CLMFatesInterfaceMod
          snow_depth => waterdiagnosticbulk_inst%snow_depth_col, &
          frac_sno_eff => waterdiagnosticbulk_inst%frac_sno_eff_col, &
          frac_veg_nosno_alb => canopystate_inst%frac_veg_nosno_alb_patch, &
-         fwet      => waterdiagnosticbulk_inst%fwet_patch   & ! Input:  [real(r8) (:)   ]  fraction of canopy that is wet (0 to 1)   ! Hui, fwet can also be put in wrap_btran, but then it will be called late  (Line693,CanopyFluxesMod.F90); it can also be put dyanmics_driv, similar to tlai. The new updates of clm will be send to FATES at the same step?
+         fwet      => waterdiagnosticbulk_inst%fwet_moss_col   & ! Input:  [real(r8) (:)   ]  fraction of canopy that is wet (0 to 1)   ! Hui, fwet can also be put in wrap_btran, but then it will be called late  (Line693,CanopyFluxesMod.F90); it can also be put dyanmics_driv, similar to tlai. The new updates of clm will be send to FATES at the same step?
          )
 
        ! Process input boundary conditions to FATES
@@ -1041,7 +1041,7 @@ module CLMFatesInterfaceMod
           this%fates(nc)%bc_in(s)%frac_sno_eff_si = frac_sno_eff(c)
           do ifp = 1,this%fates(nc)%sites(s)%youngest_patch%patchno
              p = ifp+col%patchi(c)
-             this%fates(nc)%bc_in(s)%fwet_pa(ifp)        = fwet(p)     ! wet fraction for moss and lichen
+             this%fates(nc)%bc_in(s)%fwet_pa(ifp)        = fwet(c)     ! wet fraction for moss and lichen
           end do
       
          ! Here we use the same logic as the pft_areafrac initialization to get an array with values for each pft
