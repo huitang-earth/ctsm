@@ -167,7 +167,7 @@ contains
         num_nolakep, filter_nolakep, &
         num_nolakec, filter_nolakec, &
         patch, col, &
-        canopystate_inst, atm2lnd_inst, water_inst)
+        canopystate_inst, atm2lnd_inst, water_inst, soilstate_inst)
      !
      ! !DESCRIPTION:
      ! Coordinate work related to the calculation of canopy interception and throughfall,
