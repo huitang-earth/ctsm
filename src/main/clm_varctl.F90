@@ -256,10 +256,10 @@ module clm_varctl
                                                              ! 1: normal photosynthesis as other vegetation with stomatal control  
                                                              !    This opition will overwrite FATES stomatal control parameter if inconsistent.
                                                              !    Work with mode 0-4, both CLM and FATES
-                                                             ! 2: moss and lichen photosynthesis without stomatal control (default, https://doi.org/10.5194/bg-10-6989-2013)
-                                                             !    This opition will overwrite FATES stomatal control parameter
+                                                             ! 2: moss and lichen photosynthesis without stomatal control + influence of fwet(default, https://doi.org/10.5194/bg-10-6989-2013)
+                                                             !    This opition will (not yet) overwrite FATES stomatal control parameter
                                                              !    Work with mode 0-4, both CLM and FATES
-                                                             ! 3: 2 + assume TV (moss)=TSOIL(top layer) while calculating photosynthesis
+                                                             ! 3: 2 + assume TV =T_moss_col (top layer) while calculating photosynthesis
   integer, public :: use_mosslichen_photo_flux= 0            ! How the canopy heat and water fluxes are treated while moss and lichen is doing photosynthesis
                                                              !    This does not have effect if use_mosslichen_photosyn = 0 or 4
                                                              ! 0: Normal as vegetation layer while doing photosynthesis (mode 0-4)
