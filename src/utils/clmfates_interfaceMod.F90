@@ -1988,6 +1988,7 @@ module CLMFatesInterfaceMod
     associate(&
           t_soisno  => temperature_inst%t_soisno_col , &
           t_veg     => temperature_inst%t_veg_patch  , &
+          t_moss_col=> temperature_inst%t_moss_col  , &
           tgcm      => temperature_inst%thm_patch    , &
           forc_pbot => atm2lnd_inst%forc_pbot_downscaled_col, &
           rssun     => photosyns_inst%rssun_patch  , &
@@ -2003,7 +2004,7 @@ module CLMFatesInterfaceMod
 
          do j = 1,nlevsoil
             this%fates(nc)%bc_in(s)%t_soisno_sl(j)   = t_soisno(c,j)  ! soil temperature (Kelvin)
-        end do
+         end do
          this%fates(nc)%bc_in(s)%forc_pbot           = forc_pbot(c)   ! atmospheric pressure (Pa)
     
          do ifp = 1,this%fates(nc)%sites(s)%youngest_patch%patchno
@@ -2028,6 +2029,7 @@ module CLMFatesInterfaceMod
                this%fates(nc)%bc_in(s)%cair_pa(ifp)        = cair(p)        ! Atmospheric CO2 partial pressure (Pa)
                this%fates(nc)%bc_in(s)%rb_pa(ifp)          = rb(p)          ! boundary layer resistance (s/m)
                this%fates(nc)%bc_in(s)%t_veg_pa(ifp)       = t_veg(p)       ! vegetation temperature (Kelvin)     
+               this%fates(nc)%bc_in(s)%t_moss_pa(ifp)      = t_moss_col(c)  ! moss temperature (Kelvin)     
                this%fates(nc)%bc_in(s)%tgcm_pa(ifp)        = tgcm(p)        ! air temperature at agcm reference height (kelvin)                                        
                             
             end if
