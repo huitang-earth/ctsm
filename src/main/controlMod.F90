@@ -476,7 +476,7 @@ contains
        end if
        
        ! Consistency settings for mosslichen_elai
-       if ( (mosslichen_elai <= 0.0_r8) .or. (mosslichen_elai > 1.0_r8) ) then
+       if ( (mosslichen_elai < 0.0_r8) .or. (mosslichen_elai > 1.0_r8) ) then
           call endrun(msg=' ERROR: mosslichen_elai is out of a reasonable range 0-1'//& 
                errMsg(sourcefile, __LINE__))
        end if
