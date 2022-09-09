@@ -331,7 +331,7 @@ contains
       this%snocan_patch(bounds%begp:bounds%endp) = 0._r8
       this%liqcan_patch(bounds%begp:bounds%endp) = 0._r8
       if(use_mosslichen)then
-        this%h2o_moss_col(begc:endc) = 0._r8
+        this%h2o_moss_col(bounds%begc:bounds%endc) = 0._r8
       endif
 
       !--------------------------------------------

@@ -196,7 +196,7 @@ contains
      type(water_type)       , intent(inout) :: water_inst
      !
      ! !LOCAL VARIABLES:
-     integer  :: i, pi, fc, p,     ! index of water tracer or bulk
+     integer  :: i, pi, fc, c, p     ! index of water tracer or bulk
      real(r8) :: dtime ! land model time step (sec)
 
      real(r8) :: qflx_liq_above_canopy_patch(bounds%begp:bounds%endp)        ! liquid water input above canopy (rain plus irrigation) [mm/s]
@@ -473,7 +473,7 @@ contains
             c = filter_nolakec(fc)
             ! Hui: add the calculation of h2o_moss_col
             ! convert canopy water (mm) to water mass (kg/m2): They are equivalent in fact
-            b_waterstate_inst%h2o_moss_col(c) = h2o_moss_col_tmp(c)*mosslichen_elai_tmp(c)/wt_moss_col(c) + (b_waterstate_inst%h2osoi_liq(c,1)+b_waterstate_inst%h2osoi_ice(c,1))* (1-mosslichen_elai_tmp(c))
+            b_waterstate_inst%h2o_moss_col(c) = h2o_moss_col_tmp(c)*mosslichen_elai_tmp(c)/wt_moss_col(c) + (b_waterstate_inst%h2osoi_liq_col(c,1)+b_waterstate_inst%h2osoi_ice_col(c,1))* (1-mosslichen_elai_tmp(c))
             ! The unit of watsat is (m3/m3), need to use volumetric soil water content here
             b_waterdiagnostic_inst%fwet_moss_col(c) = fwet_moss_col_tmp(c)*mosslichen_elai_tmp(c)/wt_moss_col(c) + b_waterstate_inst%h2osoi_vol_col(c,1)/soilstate_inst%watsat_col(c,1) * (1-mosslichen_elai_tmp(c))
          end do
