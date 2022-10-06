@@ -229,6 +229,15 @@ contains
 
      dtime = get_step_size_real()
 
+     do fc = 1,num_nolakec
+       c = filter_nolakec(fc)
+       if(use_mosslichen_rad == 2 .or. use_mosslichen_rad == 4 .or. (use_mosslichen_rad == 5 .and. b_waterdiagnostic_inst%snow_depth_col(c)>0.0))then
+          mosslichen_elai_tmp(c)=0.001_r8                     ! here mossliche_elai_tmp is column variable, which is enough for the purpose
+       else
+          mosslichen_elai_tmp(c)=mosslichen_elai
+       end if
+     end do
+
      ! Note about filters in this routine: Most of the work here just needs to be done
      ! for patches that have some canopy, so we use the soil filter. However, the final
      ! fluxes of water onto the ground (qflx_snow_grnd_col and qflx_liq_grnd_col) are
@@ -265,7 +274,9 @@ contains
           qflx_through_liq      = b_waterflux_inst%qflx_through_liq_patch(begp:endp), &
           qflx_intercepted_snow = b_waterflux_inst%qflx_intercepted_snow_patch(begp:endp), &
           qflx_intercepted_liq  = b_waterflux_inst%qflx_intercepted_liq_patch(begp:endp), &
-          check_point_for_interception_and_excess = check_point_for_interception_and_excess(begp:endp))
+          check_point_for_interception_and_excess = check_point_for_interception_and_excess(begp:endp), &
+          mosslichen_elai_tmp   = mosslichen_elai_tmp(begc:endc)
+          )
 
      ! Calculate canopy interception and throughfall for each tracer
      !
@@ -327,7 +338,8 @@ contains
           check_point_for_interception_and_excess = check_point_for_interception_and_excess(begp:endp), &
           ! Outputs
           qflx_snocanfall = b_waterflux_inst%qflx_snocanfall_patch(begp:endp), &
-          qflx_liqcanfall = b_waterflux_inst%qflx_liqcanfall_patch(begp:endp))
+          qflx_liqcanfall = b_waterflux_inst%qflx_liqcanfall_patch(begp:endp), &
+          mosslichen_elai_tmp   = mosslichen_elai_tmp(begc:endc))
 
      ! Calculate runoff from canopy due to exceeding maximum storage, for each tracer
      do i = water_inst%tracers_beg, water_inst%tracers_end
@@ -434,7 +446,8 @@ contains
           ! Outputs
           fwet           = b_waterdiagnostic_inst%fwet_patch(begp:endp), &
           fdry           = b_waterdiagnostic_inst%fdry_patch(begp:endp), &
-          fcansno        = b_waterdiagnostic_inst%fcansno_patch(begp:endp))
+          fcansno        = b_waterdiagnostic_inst%fcansno_patch(begp:endp), &
+          mosslichen_elai_tmp   = mosslichen_elai_tmp(begc:endc))
           
       
       if (use_mosslichen) then
@@ -458,15 +471,6 @@ contains
                 end if
               endif
             end do
-         end do
-             
-         do fc = 1,num_nolakec
-           c = filter_nolakec(fc)
-           if(use_mosslichen_rad == 2 .or. use_mosslichen_rad == 4 .or. (use_mosslichen_rad == 5 .and. b_waterdiagnostic_inst%snow_depth_col(c)>0.0))then
-              mosslichen_elai_tmp(c)=0.001_r8                     ! here mossliche_elai_tmp is column variable, which is enough for the purpose
-           else
-              mosslichen_elai_tmp(c)=mosslichen_elai
-           end if
          end do
          
          do fc = 1,num_nolakec
@@ -536,7 +540,7 @@ contains
         frac_veg_nosno, elai, esai, forc_snow, qflx_liq_above_canopy, &
         qflx_through_snow, qflx_through_liq, &
         qflx_intercepted_snow, qflx_intercepted_liq, &
-        check_point_for_interception_and_excess)
+        check_point_for_interception_and_excess, mosslichen_elai_tmp)
      !
      ! !DESCRIPTION:
      ! Compute canopy interception and throughfall for bulk water
@@ -559,12 +563,15 @@ contains
      real(r8) , intent(inout) :: qflx_intercepted_snow( bounds%begp: )                   ! canopy interception of snow (mm H2O/s)
      real(r8) , intent(inout) :: qflx_intercepted_liq( bounds%begp: )                    ! canopy interception of liquid (mm H2O/s)
      logical  , intent(inout) :: check_point_for_interception_and_excess( bounds%begp: ) ! whether each patch in the filter needs to have the interception calculations (here) and snow/liquid excess calculations (elsewhere) computed
+ 
+     real(r8) , intent(in) :: mosslichen_elai_tmp(bounds%begc:bounds%endc)            ! temporary mosslichen_elai
+
      !
      ! !LOCAL VARIABLES:
      integer :: fp, p, c
      real(r8) :: fpiliq  ! coefficient of interception for liquid
      real(r8) :: fpisnow ! coefficient of interception for snow
-     real(r8) :: mosslichen_elai_tmp(bounds%begc:bounds%endc)                ! temporary mosslichen_elai
+
 
      character(len=*), parameter :: subname = 'BulkFlux_CanopyInterceptionAndThroughfall'
      !-----------------------------------------------------------------------
@@ -579,16 +586,6 @@ contains
      SHR_ASSERT_FL((ubound(qflx_intercepted_snow, 1) == bounds%endp), sourcefile, __LINE__)
      SHR_ASSERT_FL((ubound(qflx_intercepted_liq, 1) == bounds%endp), sourcefile, __LINE__)
      SHR_ASSERT_FL((ubound(check_point_for_interception_and_excess, 1) == bounds%endp), sourcefile, __LINE__)
-
-     do fp = 1, num_nolakep
-        p = filter_nolakep(fp)
-        c = patch%column(p)
-        if(use_mosslichen_rad == 2 .or. use_mosslichen_rad == 4 .or. (use_mosslichen_rad == 5 .and. b_waterdiagnostic_inst%snow_depth_col(c)>0.0))then
-          mosslichen_elai_tmp(c)=0.001_r8                     ! here mossliche_elai_tmp is column variable, which is enough for the purpose
-        else
-          mosslichen_elai_tmp(c)=mosslichen_elai
-       end if
-     end do
 
      do fp = 1, num_nolakep
         p = filter_nolakep(fp)
@@ -810,7 +807,7 @@ contains
    subroutine BulkFlux_CanopyExcess(bounds, num_soilp, filter_soilp, &
         dtime, elai, esai, snocan, liqcan, &
         check_point_for_interception_and_excess, &
-        qflx_snocanfall, qflx_liqcanfall)
+        qflx_snocanfall, qflx_liqcanfall, mosslichen_elai_tmp)
      !
      ! !DESCRIPTION:
      ! Compute runoff from canopy due to exceeding maximum storage, for bulk
@@ -830,12 +827,14 @@ contains
 
      real(r8) , intent(inout) :: qflx_snocanfall( bounds%begp: )                         ! rate of excess canopy snow falling off canopy (mm H2O/s)
      real(r8) , intent(inout) :: qflx_liqcanfall( bounds%begp: )                         ! rate of excess canopy liquid falling off canopy (mm H2O/s)
+    
+     real(r8) , intent(in)    :: mosslichen_elai_tmp(bounds%begc:bounds%endc)            ! temporary mosslichen_elai
+
      !
      ! !LOCAL VARIABLES:
      integer :: fp, p, c
      real(r8) :: snocanmx ! maximum allowed snow on canopy (mm H2O)
      real(r8) :: liqcanmx ! maximum allowed liquid water on canopy (mm H2O)
-     real(r8) :: mosslichen_elai_tmp(bounds%begc:bounds%endc)                ! temporary mosslichen_elai
 
      character(len=*), parameter :: subname = 'BulkFlux_CanopyExcess'
      !-----------------------------------------------------------------------
@@ -848,15 +847,6 @@ contains
      SHR_ASSERT_FL((ubound(qflx_snocanfall, 1) == bounds%endp), sourcefile, __LINE__)
      SHR_ASSERT_FL((ubound(qflx_liqcanfall, 1) == bounds%endp), sourcefile, __LINE__)
 
-     do fp = 1, num_soilp
-        p = filter_soilp(fp)
-        c = patch%column(p)
-        if(use_mosslichen_rad == 2 .or. use_mosslichen_rad == 4 .or. (use_mosslichen_rad == 5 .and. b_waterdiagnostic_inst%snow_depth_col(c)>0.0))then
-          mosslichen_elai_tmp(c)=0.001_r8                     ! here mossliche_elai_tmp is column variable, which is enough for the purpose
-        else
-          mosslichen_elai_tmp(c)=mosslichen_elai
-        end if
-     end do
      
      do fp = 1, num_soilp
         p = filter_soilp(fp)
@@ -1283,7 +1273,7 @@ contains
    !-----------------------------------------------------------------------
    subroutine BulkDiag_FracWet(bounds, num_soilp, filter_soilp, &
         frac_veg_nosno, elai, esai, snocan, liqcan, &
-        fwet, fdry, fcansno)
+        fwet, fdry, fcansno, mosslichen_elai_tmp)
      !
      ! !DESCRIPTION:
      ! Determine fraction of vegetated surfaces which are wet and
@@ -1308,12 +1298,12 @@ contains
      real(r8) , intent(inout) :: fwet( bounds%begp: )           ! fraction of canopy that is wet (0 to 1)
      real(r8) , intent(inout) :: fdry( bounds%begp: )           ! fraction of foliage that is green and dry [-]
      real(r8) , intent(inout) :: fcansno( bounds%begp: )        ! fraction of canopy that is snow covered (0 to 1)
+     real(r8) , intent(in)    :: mosslichen_elai_tmp(bounds%begc:bounds%endc)       ! temporary mosslichen_elai
      !
      ! !LOCAL VARIABLES:
      integer  :: fp,p,c             ! indices
      real(r8) :: h2ocan           ! total canopy water (mm H2O)
      real(r8) :: vegt             ! lsai
-     real(r8) :: mosslichen_elai_tmp(bounds%begc:bounds%endc)                ! temporary mosslichen_elai
      !-----------------------------------------------------------------------
 
      SHR_ASSERT_FL((ubound(frac_veg_nosno, 1) == bounds%endp), sourcefile, __LINE__)
@@ -1324,16 +1314,6 @@ contains
      SHR_ASSERT_FL((ubound(fwet, 1) == bounds%endp), sourcefile, __LINE__)
      SHR_ASSERT_FL((ubound(fdry, 1) == bounds%endp), sourcefile, __LINE__)
      SHR_ASSERT_FL((ubound(fcansno, 1) == bounds%endp), sourcefile, __LINE__)
-
-     do fp = 1, num_soilp
-        p = filter_soilp(fp)
-        c = patch%column(p)
-        if(use_mosslichen_rad == 2 .or. use_mosslichen_rad == 4 .or. (use_mosslichen_rad == 5 .and. b_waterdiagnostic_inst%snow_depth_col(c)>0.0))then
-          mosslichen_elai_tmp(c)=0.001_r8                     ! here mossliche_elai_tmp is column variable, which is enough for the purpose
-        else
-          mosslichen_elai_tmp(c)=mosslichen_elai
-        end if
-     end do
 
      do fp = 1, num_soilp
         p = filter_soilp(fp)
