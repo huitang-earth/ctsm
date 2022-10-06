@@ -562,6 +562,7 @@ contains
      integer :: fp, p, c
      real(r8) :: fpiliq  ! coefficient of interception for liquid
      real(r8) :: fpisnow ! coefficient of interception for snow
+     real(r8) :: mosslichen_elai_tmp(bounds%begc:bounds%endc)                ! temporary mosslichen_elai
 
      character(len=*), parameter :: subname = 'BulkFlux_CanopyInterceptionAndThroughfall'
      !-----------------------------------------------------------------------
@@ -576,6 +577,16 @@ contains
      SHR_ASSERT_FL((ubound(qflx_intercepted_snow, 1) == bounds%endp), sourcefile, __LINE__)
      SHR_ASSERT_FL((ubound(qflx_intercepted_liq, 1) == bounds%endp), sourcefile, __LINE__)
      SHR_ASSERT_FL((ubound(check_point_for_interception_and_excess, 1) == bounds%endp), sourcefile, __LINE__)
+
+     do fp = 1, num_nolakep
+        p = filter_nolakep(fp)
+        c = patch%column(p)
+        if(use_mosslichen_rad == 2 .or. use_mosslichen_rad == 4 .or. (use_mosslichen_rad == 5 .and. b_waterdiagnostic_inst%snow_depth_col(c)>0.0))then
+          mosslichen_elai_tmp(c)=0.001_r8                     ! here mossliche_elai_tmp is column variable, which is enough for the purpose
+        else
+          mosslichen_elai_tmp(c)=mosslichen_elai
+       end if
+     end do
 
      do fp = 1, num_nolakep
         p = filter_nolakep(fp)
@@ -596,9 +607,9 @@ contains
              !print *, "moss 1"
               if (use_mosslichen_water == 1) then
                  if (use_clm5_fpi) then
-                    fpiliq = interception_fraction * tanh(elai(p) + esai(p))                      ! Hui: fpiliq can not be over 1, the fraction can increase faster with elai and esai
+                    fpiliq = interception_fraction * tanh((elai(p) + esai(p))*mosslichen_elai_tmp(c))                      ! Hui: fpiliq can not be over 1, the fraction can increase faster with elai and esai
                  else
-                    fpiliq = 0.25_r8*(1._r8 - exp(-0.5_r8*(elai(p) + esai(p))))
+                    fpiliq = 0.25_r8*(1._r8 - exp(-0.5_r8*(elai(p) + esai(p))*mosslichen_elai_tmp(c)))
                  end if
                  fpisnow = 1._r8   ! Moss intercept all the snow
               else
@@ -611,11 +622,11 @@ contains
               !print *, "lichen_1"
               if (use_mosslichen_water == 1) then
                  if (use_clm5_fpi) then
-                    fpiliq = interception_fraction * tanh(elai(p) + esai(p))
+                    fpiliq = interception_fraction * tanh((elai(p) + esai(p))*mosslichen_elai_tmp(c))
                  else
-                    fpiliq = 0.25_r8*(1._r8 - exp(-0.5_r8*(elai(p) + esai(p))))
+                    fpiliq = 0.25_r8*(1._r8 - exp(-0.5_r8*(elai(p) + esai(p))*mosslichen_elai_tmp(c)))
                  end if
-                 fpisnow = (1._r8 - exp(-0.5_r8*(elai(p) + esai(p))))  ! Lichen is the same as other vegetation
+                 fpisnow = (1._r8 - exp(-0.5_r8*(elai(p) + esai(p))*mosslichen_elai_tmp(c)))  ! Lichen is the same as other vegetation
               else
                  !Hui: no liquid and snow interception, as moss and lichen is assumed to be soil, (1._r8 - exp(-0.5_r8*(elai(p) + esai(p))))
                  fpisnow = 0._r8
@@ -819,9 +830,10 @@ contains
      real(r8) , intent(inout) :: qflx_liqcanfall( bounds%begp: )                         ! rate of excess canopy liquid falling off canopy (mm H2O/s)
      !
      ! !LOCAL VARIABLES:
-     integer :: fp, p
+     integer :: fp, p, c
      real(r8) :: snocanmx ! maximum allowed snow on canopy (mm H2O)
      real(r8) :: liqcanmx ! maximum allowed liquid water on canopy (mm H2O)
+     real(r8) :: mosslichen_elai_tmp(bounds%begc:bounds%endc)                ! temporary mosslichen_elai
 
      character(len=*), parameter :: subname = 'BulkFlux_CanopyExcess'
      !-----------------------------------------------------------------------
@@ -836,6 +848,17 @@ contains
 
      do fp = 1, num_soilp
         p = filter_soilp(fp)
+        c = patch%column(p)
+        if(use_mosslichen_rad == 2 .or. use_mosslichen_rad == 4 .or. (use_mosslichen_rad == 5 .and. b_waterdiagnostic_inst%snow_depth_col(c)>0.0))then
+          mosslichen_elai_tmp(c)=0.001_r8                     ! here mossliche_elai_tmp is column variable, which is enough for the purpose
+        else
+          mosslichen_elai_tmp(c)=mosslichen_elai
+        end if
+     end do
+     
+     do fp = 1, num_soilp
+        p = filter_soilp(fp)
+        c = patch%column(p)
         qflx_liqcanfall(p) = 0._r8
         qflx_snocanfall(p) = 0._r8
 
@@ -847,7 +870,7 @@ contains
            if ( EDPftvarcon_inst%stomatal_model(patch%itype(p)) == 3 .or. EDPftvarcon_inst%stomatal_model(patch%itype(p)) == 4 ) then ! Moss & lichen
               if (use_mosslichen_water == 1) then
                  !print *, "moss or lichen 3"
-                 liqcanmx = 2._r8 * (elai(p) + esai(p))
+                 liqcanmx = 2._r8 * (elai(p) + esai(p))*mosslichen_elai_tmp(c)
               else
                  liqcanmx = 0._r8
               end if
@@ -858,7 +881,7 @@ contains
            
            if ( EDPftvarcon_inst%stomatal_model(patch%itype(p)) == 3 .or. EDPftvarcon_inst%stomatal_model(patch%itype(p)) == 4 ) then ! Moss & lichen
               if (use_mosslichen_water == 1) then
-                 snocanmx = 10._r8 * (elai(p) + esai(p))  ! default = 6
+                 snocanmx = 10._r8 * (elai(p) + esai(p))*mosslichen_elai_tmp(c)  ! default = 6
               else
                  snocanmx = 0._r8
               end if
@@ -1285,9 +1308,10 @@ contains
      real(r8) , intent(inout) :: fcansno( bounds%begp: )        ! fraction of canopy that is snow covered (0 to 1)
      !
      ! !LOCAL VARIABLES:
-     integer  :: fp,p             ! indices
+     integer  :: fp,p,c             ! indices
      real(r8) :: h2ocan           ! total canopy water (mm H2O)
      real(r8) :: vegt             ! lsai
+     real(r8) :: mosslichen_elai_tmp(bounds%begc:bounds%endc)                ! temporary mosslichen_elai
      !-----------------------------------------------------------------------
 
      SHR_ASSERT_FL((ubound(frac_veg_nosno, 1) == bounds%endp), sourcefile, __LINE__)
@@ -1301,6 +1325,17 @@ contains
 
      do fp = 1, num_soilp
         p = filter_soilp(fp)
+        c = patch%column(p)
+        if(use_mosslichen_rad == 2 .or. use_mosslichen_rad == 4 .or. (use_mosslichen_rad == 5 .and. b_waterdiagnostic_inst%snow_depth_col(c)>0.0))then
+          mosslichen_elai_tmp(c)=0.001_r8                     ! here mossliche_elai_tmp is column variable, which is enough for the purpose
+        else
+          mosslichen_elai_tmp(c)=mosslichen_elai
+        end if
+     end do
+
+     do fp = 1, num_soilp
+        p = filter_soilp(fp)
+        c = patch%column(p)
         if (frac_veg_nosno(p) == 1) then  ! Hui: need to be modified if allow vegetation exist under snow.
            h2ocan = snocan(p) + liqcan(p)
            if (h2ocan > 0._r8) then           
@@ -1309,7 +1344,7 @@ contains
              if ( EDPftvarcon_inst%stomatal_model(patch%itype(p)) == 3 .or. EDPftvarcon_inst%stomatal_model(patch%itype(p)) == 4 ) then ! moss or lichen
                 print *, "moss or lichen 2"
                 if (use_mosslichen_water == 1) then
-                   vegt    = frac_veg_nosno(p)*(elai(p) + esai(p))
+                   vegt    = frac_veg_nosno(p)*(elai(p) + esai(p))*mosslichen_elai_tmp(c)
                    fwet(p) = (h2ocan / (vegt * 2._r8))
                    fwet(p) = min (fwet(p),1._r8)   ! maximum limit of fwet is 1, not 0.05 as default
                    if (snocan(p) > 0._r8) then
