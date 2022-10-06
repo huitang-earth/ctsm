@@ -275,8 +275,7 @@ contains
           qflx_intercepted_snow = b_waterflux_inst%qflx_intercepted_snow_patch(begp:endp), &
           qflx_intercepted_liq  = b_waterflux_inst%qflx_intercepted_liq_patch(begp:endp), &
           check_point_for_interception_and_excess = check_point_for_interception_and_excess(begp:endp), &
-          mosslichen_elai_tmp   = mosslichen_elai_tmp(begc:endc)
-          )
+          mosslichen_elai_tmp   = mosslichen_elai_tmp(begc:endc))
 
      ! Calculate canopy interception and throughfall for each tracer
      !
