@@ -478,9 +478,9 @@ contains
             ! convert canopy water (mm) to water mass (kg/m2): They are equivalent in fact
             ! Need a better treatment here for the weighted average!
             ! (1-mosslichen_elai_tmp(c)) should be replaced by the proportion of organic matter         added compare to original soil organic matter 
-            b_waterstate_inst%h2o_moss_col(c) = h2o_moss_col_tmp(c)/wt_moss_col(c) + (b_waterstate_inst%h2osoi_liq_col(c,1)+b_waterstate_inst%h2osoi_ice_col(c,1))* (1-mosslichen_elai_tmp(c))
+            b_waterstate_inst%h2o_moss_col(c) = h2o_moss_col_tmp(c)*mosslichen_elai_tmp(c)/wt_moss_col(c) + (b_waterstate_inst%h2osoi_liq_col(c,1)+b_waterstate_inst%h2osoi_ice_col(c,1))* (1-mosslichen_elai_tmp(c))
             ! The unit of watsat is (m3/m3), need to use volumetric soil water content here
-            b_waterdiagnostic_inst%fwet_moss_col(c) = fwet_moss_col_tmp(c)/wt_moss_col(c) + b_waterstate_inst%h2osoi_vol_col(c,1)/soilstate_inst%watsat_col(c,1) * (1-mosslichen_elai_tmp(c))
+            b_waterdiagnostic_inst%fwet_moss_col(c) = fwet_moss_col_tmp(c)*mosslichen_elai_tmp(c)/wt_moss_col(c) + b_waterstate_inst%h2osoi_vol_col(c,1)/soilstate_inst%watsat_col(c,1) * (1-mosslichen_elai_tmp(c))
          end do
          
 !         params_inst%liq_canopy_storage_scalar * (elai(p) + esai(p))
