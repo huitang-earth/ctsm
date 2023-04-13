@@ -574,7 +574,7 @@ contains
        
        ! sum up soil and non-vascular plant albedo
        do c=bounds%begc,bounds%endc
-          if(use_mosslichen_rad == 2 .or. use_mosslichen_rad == 4 .or. (use_mosslichen_rad == 5 .and. snow_depth(c)>0.0))then
+          if(use_mosslichen_rad == 2 .or. use_mosslichen_rad == 4 .or. (use_mosslichen_rad == 5 .and. snow_depth(c)>0.05))then
              albsfc(c,:)     = albsoi(c,:)*(1-wtcol_nv(c,:))+albsfc_nv(c,:)        ! Weighted average of moss/lichen albedo and soil albedo
              albsfc_d(c,:)   = albsod(c,:)*(1-wtcol_nv(c,:))+albsfc_nv_d(c,:)
           else
@@ -584,7 +584,7 @@ contains
        print *, "test_rad4: albsoi, albsfc=", albsoi(:,:), albsfc(:,:), albsod(:,:), albsfc_d(:,:)
 
        do c=bounds%begc,bounds%endc
-          if(use_mosslichen_rad == 2 .or. use_mosslichen_rad == 4 .or. (use_mosslichen_rad == 5 .and. snow_depth(c)>0.0))then
+          if(use_mosslichen_rad == 2 .or. use_mosslichen_rad == 4 .or. (use_mosslichen_rad == 5 .and. snow_depth(c)>0.05))then
              albsoi(c,:)=albsfc(c,:) 
              albsod(c,:)=albsfc_d(c,:)
           end if

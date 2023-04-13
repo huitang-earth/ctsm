@@ -719,7 +719,7 @@ contains
          p = filterp(f)
          c = patch%column(p)
       
-         if(use_mosslichen_rad == 2 .or. use_mosslichen_rad == 4 .or. (use_mosslichen_rad == 5 .and. snow_depth(c)>0.0))then
+         if(use_mosslichen_rad == 2 .or. use_mosslichen_rad == 4 .or. (use_mosslichen_rad == 5 .and. snow_depth(c)>params_inst%z_dl))then
             mosslichen_elai_tmp(p)= 0.001_r8                      !here mossliche_elai_tmp is patch variable, which is enough for the purpose
          else
             mosslichen_elai_tmp(p)= mosslichen_elai

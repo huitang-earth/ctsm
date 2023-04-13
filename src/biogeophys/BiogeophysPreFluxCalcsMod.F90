@@ -319,7 +319,7 @@ contains
 
        avmuir = 1._r8
        
-       if(use_mosslichen_rad == 2 .or. use_mosslichen_rad == 4 .or. (use_mosslichen_rad == 5 .and. snow_depth(c)>0.0))then
+       if(use_mosslichen_rad == 2 .or. use_mosslichen_rad == 4 .or. (use_mosslichen_rad == 5 .and. snow_depth(c)>0.05))then
          ! if assume mosslichen undersnow (option 2 and 4), the effect of moss canopy should be minimized througout the year.
          ! For option 5, the effect of moss canopy during snow free period can be as assumed by "mosslichen_elai". 
          emv(p) = 1._r8-exp(-0.001_r8*(elai(p)+esai(p))/avmuir)

@@ -544,7 +544,7 @@ contains
          
          do fc = 1,num_nolakec
              c = filter_nolakec(fc)
-             if(use_mosslichen_rad == 2 .or. use_mosslichen_rad == 4 .or. (use_mosslichen_rad == 5 .and. snow_depth(c)>0.0))then
+             if(use_mosslichen_rad == 2 .or. use_mosslichen_rad == 4 .or. (use_mosslichen_rad == 5 .and. snow_depth(c)>0.05))then
                  mosslichen_elai_tmp(c)=0.001_r8                     ! here mossliche_elai_tmp is column variable, which is enough for the purpose
              else
                  mosslichen_elai_tmp(c)=mosslichen_elai
