@@ -503,52 +503,75 @@ contains
                 !I will use the following implementation to further explore the ET problem, now
                 !I set soil order to 0 for all soils. Jinyun Tang, Mar 20, 2014
 
-                ipedof=get_ipedof(0)
+                ipedof=get_ipedof(0)                
                 call pedotransf(ipedof, sand, clay, &
                      soilstate_inst%watsat_col(c,lev), soilstate_inst%bsw_col(c,lev), soilstate_inst%sucsat_col(c,lev), xksat)
+                
+                if (use_mosslichen .and. use_mosslichen_mode ==1 .and. lev<=1) then
+                ! Hui: assume hydraulic properties for moss
+                   om_watsat=0.93
+                   om_b=2.7
+                   om_sucsat=10.1
+                   om_hksat=0.28                   
+                else
+                   om_watsat         = max(0.93_r8 - 0.1_r8   *(zsoi(lev)/zsapric), 0.83_r8)           !Hui: saturation can be modified for moss and lichen
+                   om_b              = min(2.7_r8  + 9.3_r8   *(zsoi(lev)/zsapric), 12.0_r8)           !Hui: can be modified for moss and lichen
+                   om_sucsat         = min(10.3_r8 - 0.2_r8   *(zsoi(lev)/zsapric), 10.1_r8)           !Hui: suction can be modified for moss and lichen
+                   om_hksat          = max(0.28_r8 - 0.2799_r8*(zsoi(lev)/zsapric), xksat)             !Hui: water conductivity can be modified
+                                                                                                       !tkm_om,tkd_om and csol_om can be modified
+                end if
 
-                om_watsat         = max(0.93_r8 - 0.1_r8   *(zsoi(lev)/zsapric), 0.83_r8)           !Hui: saturation can be modified for moss and lichen
-                om_b              = min(2.7_r8  + 9.3_r8   *(zsoi(lev)/zsapric), 12.0_r8)           !Hui: can be modified for moss and lichen
-                om_sucsat         = min(10.3_r8 - 0.2_r8   *(zsoi(lev)/zsapric), 10.1_r8)           !Hui: suction can be modified for moss and lichen
-                om_hksat          = max(0.28_r8 - 0.2799_r8*(zsoi(lev)/zsapric), xksat)             !Hui: water conductivity can be modified
-                                                                                                    !tkm_om,tkd_om and csol_om can be modified
 
-                soilstate_inst%bd_col(c,lev)        = (1._r8 - soilstate_inst%watsat_col(c,lev))*params_inst%pd
+                if (use_mosslichen .and. use_mosslichen_mode ==1 .and. lev<=1) then     ! bulk density of moss is low <100 kg/c
+                   soilstate_inst%bd_col(c,lev)        = (1._r8 - om_watsat)*params_inst%pd
+                else
+                   soilstate_inst%bd_col(c,lev)        = (1._r8 - soilstate_inst%watsat_col(c,lev))*params_inst%pd
+                end if 
+                
                 soilstate_inst%watsat_col(c,lev)    = params_inst%watsat_adjustfactor * ( (1._r8 - om_frac) * &
                                                       soilstate_inst%watsat_col(c,lev) + om_watsat*om_frac )
-                tkm                                 = (1._r8-om_frac) * (params_inst%tkd_sand*sand+params_inst%tkd_clay*clay)/ &
-                                                      (sand+clay)+params_inst%tkm_om*om_frac ! W/(m K)
                 soilstate_inst%bsw_col(c,lev)       = params_inst%bsw_adjustfactor * ( (1._r8-om_frac) * &
                                                       (2.91_r8 + 0.159_r8*clay) + om_frac*om_b )
                 soilstate_inst%sucsat_col(c,lev)    = params_inst%sucsat_adjustfactor * ( (1._r8-om_frac) * &
                                                       soilstate_inst%sucsat_col(c,lev) + om_sucsat*om_frac ) 
                 soilstate_inst%hksat_min_col(c,lev) = xksat
 
-                ! perc_frac is zero unless perf_frac greater than percolation threshold
-                if (om_frac > pcalpha) then                                           !Hui: percolation threshold (pcalpha) can be modified to 
-                                                                                      !represent the connected part in moss & lichen
-                   perc_norm=(1._r8 - pcalpha)**(-pcbeta)
-                   perc_frac=perc_norm*(om_frac - pcalpha)**pcbeta
-                else
-                   perc_frac=0._r8
-                endif
-
-                ! uncon_frac is fraction of mineral soil plus fraction of "nonpercolating" organic soil
-                uncon_frac=(1._r8-om_frac)+(1._r8-perc_frac)*om_frac
-
-                ! uncon_hksat is series addition of mineral/organic conductivites
-                if (om_frac < 1._r8) then
-                   uncon_hksat=uncon_frac/((1._r8-om_frac)/xksat &
-                        +((1._r8-perc_frac)*om_frac)/om_hksat)
-                else
+                
+                if (use_mosslichen .and. use_mosslichen_mode ==1 .and. lev<=1) then
+                   perc_frac=1._r8                    !Hui: perc_frac should be 1 for moss, so water conductivity will be the same as organic matter.
+                   uncon_frac=0._r8
                    uncon_hksat = 0._r8
+                else                  
+                   ! perc_frac is zero unless perf_frac greater than percolation threshold
+                   if (om_frac > pcalpha) then                                           
+                      perc_norm=(1._r8 - pcalpha)**(-pcbeta)
+                      perc_frac=perc_norm*(om_frac - pcalpha)**pcbeta
+                   else
+                      perc_frac=0._r8
+                   endif
+
+                   ! uncon_frac is fraction of mineral soil plus fraction of "nonpercolating" organic soil
+                   uncon_frac=(1._r8-om_frac)+(1._r8-perc_frac)*om_frac
+
+                   ! uncon_hksat is series addition of mineral/organic conductivites
+                   if (om_frac < 1._r8) then
+                      uncon_hksat=uncon_frac/((1._r8-om_frac)/xksat &
+                        +((1._r8-perc_frac)*om_frac)/om_hksat)
+                   else
+                      uncon_hksat = 0._r8
+                   end if
                 end if
+                
                 soilstate_inst%hksat_col(c,lev)  = params_inst%hksat_adjustfactor * ( uncon_frac*uncon_hksat + &
                                                    (perc_frac*om_frac)*om_hksat )
+                                                   
 
-                soilstate_inst%tkmg_col(c,lev)   = tkm ** (1._r8- soilstate_inst%watsat_col(c,lev))           
+                             
+                tkm                                 = (1._r8-om_frac) * (params_inst%tkd_sand*sand+params_inst%tkd_clay*clay)/ &
+                                                      (sand+clay)+params_inst%tkm_om*om_frac ! W/(m K)
+                soilstate_inst%tkmg_col(c,lev)   = tkm ** (1._r8- soilstate_inst%watsat_col(c,lev))                                 !Hui: no need to be changed for moss (solid fraction for thermal conductivity)
 
-                soilstate_inst%tksatu_col(c,lev) = soilstate_inst%tkmg_col(c,lev)*0.57_r8**soilstate_inst%watsat_col(c,lev)
+                soilstate_inst%tksatu_col(c,lev) = soilstate_inst%tkmg_col(c,lev)*0.57_r8**soilstate_inst%watsat_col(c,lev)         !Hui: not relevant for moss
 
                 soilstate_inst%tkdry_col(c,lev)  = ((0.135_r8*soilstate_inst%bd_col(c,lev) + 64.7_r8) / &
                      (params_inst%pd - 0.947_r8*soilstate_inst%bd_col(c,lev)))*(1._r8-om_frac) + params_inst%tkd_om*om_frac  
@@ -556,15 +579,15 @@ contains
                 soilstate_inst%csol_col(c,lev)   = ((1._r8-om_frac)*(params_inst%csol_sand*sand+ &
                      params_inst%csol_clay*clay) / (sand+clay) + params_inst%csol_om*om_frac)*1.e6_r8  ! J/(m3 K)
 
-                soilstate_inst%watdry_col(c,lev) = soilstate_inst%watsat_col(c,lev) * &
+                soilstate_inst%watdry_col(c,lev) = soilstate_inst%watsat_col(c,lev) * &                                           !Hui: not relevant for moss
                      (316230._r8/soilstate_inst%sucsat_col(c,lev)) ** (-1._r8/soilstate_inst%bsw_col(c,lev)) 
-                soilstate_inst%watopt_col(c,lev) = soilstate_inst%watsat_col(c,lev) * &
+                soilstate_inst%watopt_col(c,lev) = soilstate_inst%watsat_col(c,lev) * &                                           !Hui: not relevant for moss
                      (158490._r8/soilstate_inst%sucsat_col(c,lev)) ** (-1._r8/soilstate_inst%bsw_col(c,lev)) 
 
                 !! added by K.Sakaguchi for beta from Lee and Pielke, 1992
                 ! water content at field capacity, defined as hk = 0.1 mm/day
                 ! used eqn (7.70) in CLM3 technote with k = 0.1 (mm/day) / secspday (day/sec)
-                soilstate_inst%watfc_col(c,lev) = soilstate_inst%watsat_col(c,lev) * &
+                soilstate_inst%watfc_col(c,lev) = soilstate_inst%watsat_col(c,lev) * &                                            !Hui: not relevant for moss
                      (0.1_r8 / (soilstate_inst%hksat_col(c,lev)*secspday))**(1._r8/(2._r8*soilstate_inst%bsw_col(c,lev)+3._r8))
              end if
           end do
