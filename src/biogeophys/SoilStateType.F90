@@ -286,6 +286,16 @@ contains
     call hist_addfld2d (fname='THK', units='W/m-K', type2d='levgrnd', &
          avgflag='A', long_name='Thermal conductivity (soil)', &
          ptr_col=data2dptr, default='inactive')
+         
+    this%tkmg_col(begc:endc,:) = spval   
+    call hist_addfld2d (fname='TKMG', units='W/m-K', type2d='levgrnd', &
+         avgflag='A', long_name='thermal conductivity, moist soil minerals+organic matter', &
+         ptr_col=this%tkmg_col, default='inactive')
+
+    this%tkdry_col(begc:endc,:) = spval     
+    call hist_addfld2d (fname='TKDRY', units='W/m-K', type2d='levgrnd', &
+         avgflag='A', long_name='thermal conductivity, dry soil (W/m/Kelvin)', &
+         ptr_col=this%tkdry_col, default='inactive')
 
     this%hk_l_col(begc:endc,:) = spval
     call hist_addfld2d (fname='HK',  units='mm/s', type2d='levgrnd',  &
