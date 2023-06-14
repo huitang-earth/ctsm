@@ -231,6 +231,8 @@ contains
 
      do fc = 1,num_nolakec
        c = filter_nolakec(fc)
+       !Hui: I don't think there is need for the if-statement here?
+       !     mosslichen_elai will take charge of the changes in mosslichen_elai_tmp?
        if(use_mosslichen_rad == 2 .or. use_mosslichen_rad == 4 .or. (use_mosslichen_rad == 5 .and. b_waterdiagnostic_inst%snow_depth_col(c)>0.05))then
           mosslichen_elai_tmp(c)=0.001_r8                     ! here mossliche_elai_tmp is column variable, which is enough for the purpose
        else
