@@ -1078,14 +1078,31 @@ contains
 
             ! add litter resistance and Lee and Pielke 1992 beta
             if (delq(p) < 0._r8) then  !dew. Do not apply beta for negative flux (follow old rsoil)
-               wtgq(p) = frac_veg_nosno(p)/(raw(p,2)+rdl)
+               if (EDPftvarcon_inst%stomatal_model(patch%itype(p)) == 3 .or. EDPftvarcon_inst%stomatal_model(patch%itype(p)) == 4) then
+               !Hui: avoid using dry litter layer for moss covered patch
+                  wtgq(p) = frac_veg_nosno(p)/(raw(p,2))
+               else
+                  wtgq(p) = frac_veg_nosno(p)/(raw(p,2)+rdl)
+               end if
             else
-               if (do_soilevap_beta()) then
-                  wtgq(p) = soilbeta(c)*frac_veg_nosno(p)/(raw(p,2)+rdl)
-               endif
-               if (do_soil_resistance_sl14()) then
-                  wtgq(p) = frac_veg_nosno(p)/(raw(p,2)+soilresis(c))
-               endif
+               if (EDPftvarcon_inst%stomatal_model(patch%itype(p)) == 3 .or. EDPftvarcon_inst%stomatal_model(patch%itype(p)) == 4) then
+               ! Hui: avoid using dry litter layer (rdl) for moss covered patch
+                 if (do_soilevap_beta()) then
+                    wtgq(p) = soilbeta(c)*frac_veg_nosno(p)/(raw(p,2))
+                 endif
+                 if (do_soil_resistance_sl14()) then
+                    wtgq(p) = frac_veg_nosno(p)/(raw(p,2))
+                 endif           
+               else
+                 if (do_soilevap_beta()) then
+                    wtgq(p) = soilbeta(c)*frac_veg_nosno(p)/(raw(p,2)+rdl)
+                 endif
+                 if (do_soil_resistance_sl14()) then
+                    !wtgq(p) = frac_veg_nosno(p)/(raw(p,2)+soilresis(c))
+                    !Hui: for testing, also remove dry litter layer for other PFT
+                    wtgq(p) = frac_veg_nosno(p)/(raw(p,2))
+                 endif
+               end if
             end if
 
             wtsqi   = 1._r8/(wtaq+wtlq+wtgq(p))
