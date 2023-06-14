@@ -881,11 +881,12 @@ contains
             print *, "check2=", EDPftvarcon_inst%stomatal_model(patch%itype(p))
             if ( EDPftvarcon_inst%stomatal_model(patch%itype(p)) == 3 .or. EDPftvarcon_inst%stomatal_model(patch%itype(p)) == 4 ) then ! moss or lichen  
                print *, "moss or lichen 0"          
-               if (use_mosslichen_mode==0) then              ! Try to increase ground resistance if moss and lichen are implemented as vegetation
-                  ricsoilc= params_inst%csoilc    !* fwet(p)          ! even smaller than 0.004.
-                  csoilcn = ricsoilc
-                  print *, "csoilcn=", csoilcn
-               else                                      ! Use the normal scheme for ground resistance, if moss and lichen are implemented as vegetation
+!Hui: This part is not needed anymore, as we are not aiming to make pure vegetation representation working. This is also not physically-sounding.
+!               if (use_mosslichen_mode==0) then              ! Try to increase ground resistance if moss and lichen are implemented as vegetation (largest resistence -> lowest conductance)
+!                  ricsoilc= params_inst%csoilc    !* fwet(p)          ! even smaller than 0.004.
+!                  csoilcn = ricsoilc
+!                  print *, "csoilcn=", csoilcn
+!               else                                      ! Use the normal scheme for ground resistance, if moss and lichen are implemented as vegetation
                  if (use_undercanopy_stability .and. (taf(p) - t_grnd(c) ) > 0._r8) then
                     ! decrease the value of csoilc by dividing it with (1+gamma*min(S, 10.0))
                     ! ria ("gmanna" in Sakaguchi&Zeng, 2008) is a constant (=0.5)
@@ -894,7 +895,7 @@ contains
                  else
                     csoilcn = csoilb*w + params_inst%csoilc*(1._r8-w)
                  end if
-               end if
+!               end if
             else            
               if (use_undercanopy_stability .and. (taf(p) - t_grnd(c) ) > 0._r8) then
                  ! decrease the value of csoilc by dividing it with (1+gamma*min(S, 10.0))
