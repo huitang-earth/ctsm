@@ -924,7 +924,8 @@ contains
               if (use_mosslichen_mode==0) then
                  svpts(p) = el(p)     ! pa
               else
-                 svpts(p) = qg_soil(c)     ! pa
+                 !svpts(p) = qg_soil(c)
+                 svpts(p) = qg_soil(c)*(1-mosslichen_elai_tmp(p))+el(p)*mosslichen_elai_tmp(p)    ! pa
               end if
             else
                svpts(p) = el(p) 
