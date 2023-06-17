@@ -270,6 +270,7 @@ contains
     ! Note that fates has its own root fraction root fraction routine and should not
     ! use the following since it depends on patch%itype - which fates should not use
 
+    !Hui: Root fraction should also be re-initialized if the first soil layer is used for moss.
     if (.not. use_fates) then
         call init_vegrootfr(bounds, nlevsoi, nlevgrnd, &
              soilstate_inst%rootfr_patch(begp:endp,1:nlevgrnd),'water')
@@ -424,6 +425,56 @@ contains
           do lev = 1,nlevgrnd
              ! Top-most model soil level corresponds to dataset's top-most soil
              ! level regardless of corresponding depths
+           
+           !Hui: if moss layer exist, the "real" soil layer will be moved to one layer down with the same depth structure (zsoi(lev-1) plays the trick!). 
+           if ( use_mosslichen .and. use_mosslichen_mode ==1) then            
+             if (lev .eq. 1) then
+                clay = 0
+                sand = 0
+                om_frac = organic_max
+             else if (lev .eq. 2) then
+                clay = clay3d(g,1)
+                sand = sand3d(g,1)
+                om_frac = organic3d(g,1)/organic_max
+             else if (lev <= nlevsoi) then
+                found = 0  ! reset value
+                if (zsoi(lev-1) <= zisoifl(1)) then  !Hui:  
+                   ! Search above the dataset's range of zisoifl depths
+                   clay = clay3d(g,1)
+                   sand = sand3d(g,1)
+                   om_frac = organic3d(g,1)/organic_max
+                   found = 1
+                else if (zsoi(lev-1) > zisoifl(nlevsoifl)) then
+                   ! Search below the dataset's range of zisoifl depths
+                   clay = clay3d(g,nlevsoifl)
+                   sand = sand3d(g,nlevsoifl)
+                   om_frac = organic3d(g,nlevsoifl)/organic_max
+                   found = 1
+                else
+                   ! For remaining model soil levels, search within dataset's
+                   ! range of zisoifl values. Look for model node depths
+                   ! that are between the dataset's interface depths.
+                   do j = 1,nlevsoifl-1
+                      if (zsoi(lev-1) > zisoifl(j) .AND. zsoi(lev-1) <= zisoifl(j+1)) then
+                         clay = clay3d(g,j+1)
+                         sand = sand3d(g,j+1)
+                         om_frac = organic3d(g,j+1)/organic_max
+                         found = 1
+                      endif
+                      if (found == 1) exit  ! no need to stay in the loop
+                   end do
+                end if
+                ! If not found, then something's wrong
+                if (found == 0) then
+                   write(iulog,*) 'For model soil level =', lev
+                   call endrun(msg="ERROR finding a soil dataset depth to interpolate the model depth to"//errmsg(sourcefile, __LINE__))
+                end if
+             else  ! if lev > nlevsoi
+                clay = clay3d(g,nlevsoifl)
+                sand = sand3d(g,nlevsoifl)
+                om_frac = 0._r8
+             endif           
+           else
              if (lev .eq. 1) then
                 clay = clay3d(g,1)
                 sand = sand3d(g,1)
@@ -466,6 +517,8 @@ contains
                 sand = sand3d(g,nlevsoifl)
                 om_frac = 0._r8
              endif
+          
+           endif
 
              if (organic_frac_squared) then
                 om_frac = om_frac**2._r8
@@ -503,7 +556,9 @@ contains
                 !I will use the following implementation to further explore the ET problem, now
                 !I set soil order to 0 for all soils. Jinyun Tang, Mar 20, 2014
 
-                ipedof=get_ipedof(0)                
+                ipedof=get_ipedof(0)  
+                
+                ! Hui:it is accept to have sand and clay to be 0.               
                 call pedotransf(ipedof, sand, clay, &
                      soilstate_inst%watsat_col(c,lev), soilstate_inst%bsw_col(c,lev), soilstate_inst%sucsat_col(c,lev), xksat)
                 
