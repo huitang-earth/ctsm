@@ -32,7 +32,9 @@ module SurfaceAlbedoType
      real(r8), pointer :: albgrd_col           (:,:) ! col ground albedo (direct)  (numrad)                        
      real(r8), pointer :: albgri_col           (:,:) ! col ground albedo (diffuse) (numrad)                        
      real(r8), pointer :: albsod_col           (:,:) ! col soil albedo: direct  (col,bnd) [frc]                    
-     real(r8), pointer :: albsoi_col           (:,:) ! col soil albedo: diffuse (col,bnd) [frc]                    
+     real(r8), pointer :: albsoi_col           (:,:) ! col soil albedo: diffuse (col,bnd) [frc]
+     real(r8), pointer :: fabd_moss_col        (:,:) ! col flux absorbed by moss per unit direct flux         (numrad)                    
+     real(r8), pointer :: fabi_moss_col        (:,:) ! col flux absorbed by moss per unit diffuse flux        (numrad)     
      real(r8), pointer :: albsnd_hst_col       (:,:) ! col snow albedo, direct , for history files (col,bnd) [frc] 
      real(r8), pointer :: albsni_hst_col       (:,:) ! col snow albedo, diffuse, for history files (col,bnd) [frc] 
 
@@ -127,6 +129,9 @@ contains
     allocate(this%albgri_oc_col      (begc:endc,numrad))       ; this%albgri_oc_col      (:,:) = nan
     allocate(this%albgrd_dst_col     (begc:endc,numrad))       ; this%albgrd_dst_col     (:,:) = nan
     allocate(this%albgri_dst_col     (begc:endc,numrad))       ; this%albgri_dst_col     (:,:) = nan
+    allocate(this%fabd_moss_col      (begc:endc,numrad))       ; this%fabd_moss_col      (:,:) = nan
+    allocate(this%fabi_moss_col      (begc:endc,numrad))       ; this%fabi_moss_col      (:,:) = nan
+        
     allocate(this%albd_patch         (begp:endp,numrad))       ; this%albd_patch         (:,:) = nan
     allocate(this%albi_patch         (begp:endp,numrad))       ; this%albi_patch         (:,:) = nan
     allocate(this%albdSF_patch       (begp:endp,numrad))       ; this%albdSF_patch       (:,:) = nan
@@ -138,6 +143,7 @@ contains
     allocate(this%fabd_sun_patch     (begp:endp,numrad))       ; this%fabd_sun_patch     (:,:) = nan
     allocate(this%fabd_sha_patch     (begp:endp,numrad))       ; this%fabd_sha_patch     (:,:) = nan
     allocate(this%fabi_patch         (begp:endp,numrad))       ; this%fabi_patch         (:,:) = nan
+
     allocate(this%fabi_sun_patch     (begp:endp,numrad))       ; this%fabi_sun_patch     (:,:) = nan
     allocate(this%fabi_sha_patch     (begp:endp,numrad))       ; this%fabi_sha_patch     (:,:) = nan
     allocate(this%fabd_sun_z_patch   (begp:endp,nlevcan))      ; this%fabd_sun_z_patch   (:,:) = 0._r8
@@ -258,6 +264,8 @@ contains
     this%albgri_bc_col  (begc:endc, :) = 0.2_r8
     this%albgrd_oc_col  (begc:endc, :) = 0.2_r8
     this%albgri_oc_col  (begc:endc, :) = 0.2_r8
+    this%fabi_moss_col  (begc:endc, :) = 0.0_r8
+    this%fabd_moss_col  (begc:endc, :) = 0.0_r8    
     this%albgrd_dst_col (begc:endc, :) = 0.2_r8
     this%albgri_dst_col (begc:endc, :) = 0.2_r8
  
