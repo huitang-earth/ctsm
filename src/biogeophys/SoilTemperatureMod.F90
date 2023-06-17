@@ -154,7 +154,7 @@ contains
     real(r8) :: fn1(bounds%begc:bounds%endc,-nlevsno+1:nlevgrnd)         ! heat diffusion through the layer interface [W/m2]
     real(r8) :: dzm                                                      ! used in computing tridiagonal matrix
     real(r8) :: dzp                                                      ! used in computing tridiagonal matrix
-    real(r8) :: sabg_lyr_col(bounds%begc:bounds%endc,-nlevsno+1:1)       ! absorbed solar radiation (col,lyr) [W/m2]
+    real(r8) :: sabg_lyr_col(bounds%begc:bounds%endc,-nlevsno+1:2)       ! absorbed solar radiation (col,lyr) [W/m2]
     real(r8) :: eflx_gnet_top                                            ! net energy flux into surface layer, patch-level [W/m2]
     real(r8) :: hs_top(bounds%begc:bounds%endc)                          ! net energy flux into surface layer (col) [W/m2]
     logical  :: cool_on(bounds%begl:bounds%endl)                         ! is urban air conditioning on?
@@ -1644,7 +1644,7 @@ contains
       ! to each layer
 
       ! Initialize:
-      sabg_lyr_col(begc:endc,-nlevsno+1:1) = 0._r8
+      sabg_lyr_col(begc:endc,-nlevsno+1:2) = 0._r8
       hs_top(begc:endc)                    = 0._r8
       hs_top_snow(begc:endc)               = 0._r8
 
@@ -1672,7 +1672,7 @@ contains
 
                      hs_top_snow(c) = hs_top_snow(c) + eflx_gnet_snow*patch%wtcol(p)
 
-                     do j = lyr_top,1,1
+                     do j = lyr_top,2,1
                         sabg_lyr_col(c,j) = sabg_lyr_col(c,j) + sabg_lyr(p,j) * patch%wtcol(p)
                      enddo
                   else
@@ -2221,10 +2221,11 @@ contains
                        + cnfac*(fn(c,j) - frac_sno_eff(c) * fn(c,j-1)))
 
                   rt(c,j) = rt(c,j) +  frac_sno_eff(c)*fact(c,j)*sabg_lyr_col(c,j)
-
+               else if (j == 2) then
+                  rt(c,j) = t_soisno(c,j) + cnfac*fact(c,j)*( fn(c,j) - fn(c,j-1) )
+                  rt(c,j) = rt(c,j) + (fact(c,j)*sabg_lyr_col(c,j))
                else if (j <= nlevgrnd-1) then
                   rt(c,j) = t_soisno(c,j) + cnfac*fact(c,j)*( fn(c,j) - fn(c,j-1) )
-
                else if (j == nlevgrnd) then
                   rt(c,j) = t_soisno(c,j) - cnfac*fact(c,j)*fn(c,j-1) + fact(c,j)*fn(c,j)
                end if
