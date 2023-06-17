@@ -127,7 +127,7 @@ contains
     endif    
     allocate(this%sabv_patch             (begp:endp))              ; this%sabv_patch             (:)   = nan
     allocate(this%sabg_patch             (begp:endp))              ; this%sabg_patch             (:)   = nan
-    allocate(this%sabg_lyr_patch         (begp:endp,-nlevsno+1:1)) ; this%sabg_lyr_patch         (:,:) = nan
+    allocate(this%sabg_lyr_patch         (begp:endp,-nlevsno+1:2)) ; this%sabg_lyr_patch         (:,:) = nan
     allocate(this%sabg_pen_patch         (begp:endp))              ; this%sabg_pen_patch         (:)   = nan
     allocate(this%sabg_soil_patch        (begp:endp))              ; this%sabg_soil_patch        (:)   = nan
     allocate(this%sabg_snow_patch        (begp:endp))              ; this%sabg_snow_patch        (:)   = nan
