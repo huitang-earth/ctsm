@@ -7,7 +7,7 @@ module SurfaceRadiationMod
   ! !USES:
   use shr_kind_mod      , only : r8 => shr_kind_r8
   use shr_log_mod       , only : errMsg => shr_log_errMsg
-  use clm_varctl        , only : use_snicar_frc, use_fates
+  use clm_varctl        , only : use_snicar_frc, use_fates, 
   use decompMod         , only : bounds_type
   use clm_varcon        , only : namec
   use atm2lndType       , only : atm2lnd_type
@@ -577,7 +577,9 @@ contains
           albgrd_pur      =>    surfalb_inst%albgrd_pur_col       , & ! Input:  [real(r8) (:,:) ] pure snow ground albedo (direct)
           albgri_pur      =>    surfalb_inst%albgri_pur_col       , & ! Input:  [real(r8) (:,:) ] pure snow ground albedo (diffuse)
           albgrd_bc       =>    surfalb_inst%albgrd_bc_col        , & ! Input:  [real(r8) (:,:) ] ground albedo without BC (direct) (col,bnd)
-          albgri_bc       =>    surfalb_inst%albgri_bc_col        , & ! Input:  [real(r8) (:,:) ] ground albedo without BC (diffuse) (col,bnd)
+          albgri_bc       =>    surfalb_inst%albgri_bc_col        , & ! Input:  [real(r8) (:,:) ] ground albedo without BC (diffuse) (col,bnd)          
+          fabi_nv         =>    surfalb_inst%fabi_moss_col        , & ! Output:  [real(r8) (:,:) ]  direct-beam soil albedo (col,bnd) [frc]
+          fabd_nv         =>    surfalb_inst%fabd_moss_col        , & ! Output:  [real(r8) (:,:) ]  diffuse soil albedo (col,bnd) [frc]             
           tlai            =>    canopystate_inst%tlai_patch       , & ! Input:  [real(r8) (:)   ] one-sided leaf area index
           elai            =>    canopystate_inst%elai_patch       , & ! Input:  [real(r8) (:)   ] one-sided leaf area index with burying by snow
           esai            =>    canopystate_inst%esai_patch       , & ! Input:  [real(r8) (:)   ] one-sided stem area index with burying by snow
@@ -757,8 +759,19 @@ contains
           ! CASE1: No snow layers: all energy is absorbed in top soil layer
           if (snl(c) == 0) then
              sabg_lyr(p,:) = 0._r8
-             sabg_lyr(p,1) = sabg(p)
-             sabg_snl_sum  = sabg_lyr(p,1)
+             
+             if (use_mosslichen_mode>0) then
+                ! Hui: Use column averaged absorption rate to avoid any unexpected too high patch values?
+                ! First moss layer absorb radiation as same as the absorbed radiation derived from FATES.
+                ! second soil layer get the rest of the incoming solar radiation. 
+                sabg_lyr(p,1) = fabd_nv(c,1)*trd(p,1) + fabd_nv(c,2)*trd(p,2) + &
+                     fabi_nv(c,1)*tri(p,1) + fabi_nv(c,2)*tri(p,2)                 
+                sabg_lyr(p,2) = sabg(p)-sabg_lyr(p,1)             
+                sabg_snl_sum  = sum(sabg_lyr(p,1:2))
+             else
+                sabg_lyr(p,1) = sabg(p)             
+                sabg_snl_sum  = sabg_lyr(p,1)
+             endif
 
              ! CASE 2: Snow layers present: absorbed radiation is scaled according to
              ! flux factors computed by SNICAR
@@ -766,15 +779,38 @@ contains
              do i = -nlevsno+1,1,1
                ! Hui: Here, needs to allow index go down to 1-4 for moss and mosslichen
                !      separate absorption from moss and soil here, separately, to allow less heat in the top soil layer..... 
-                sabg_lyr(p,i) = flx_absdv(c,i)*trd(p,1) + flx_absdn(c,i)*trd(p,2) + &
+               !      This is done by using flux absorbed by moss per unit direct/indirect flux simulated by FATES       
+               if (i<1) then
+                   sabg_lyr(p,i) = flx_absdv(c,i)*trd(p,1) + flx_absdn(c,i)*trd(p,2) + &
                      flx_absiv(c,i)*tri(p,1) + flx_absin(c,i)*tri(p,2)
+               else
+                  if (use_mosslichen_mode>0) then
+                    sabg_lyr(p,1) = fabd_nv(c,1)*trd(p,1) + fabd_nv(c,2)*trd(p,2) + &
+                         fabi_nv(c,1)*tri(p,1) + fabi_nv(c,2)*tri(p,2)
+                    sabg_lyr(p,2) = (flx_absdv(c,i)*trd(p,1) + flx_absdn(c,i)*trd(p,2) + &
+                         flx_absiv(c,i)*tri(p,1) + flx_absin(c,i)*tri(p,2))-sabg_lyr(p,1)
+                  else
+                    sabg_lyr(p,i) = flx_absdv(c,i)*trd(p,1) + flx_absdn(c,i)*trd(p,2) + &
+                     flx_absiv(c,i)*tri(p,1) + flx_absin(c,i)*tri(p,2)                    
+                  endif
+               endif        
+               
                 ! summed radiation in active snow layers:
-                if (i >= snl(c)+1) then
-                   sabg_snl_sum = sabg_snl_sum + sabg_lyr(p,i)
+                if (i >= snl(c)+1) then                   
+                   if (i >= 1) then
+                      sabg_snl_sum = sabg_snl_sum + sabg_lyr(p,1)+sabg_lyr(p,2)     
+                   else
+                      sabg_snl_sum = sabg_snl_sum + sabg_lyr(p,i)
+                   endif                                      
                 endif
                 if (i > snl(c)+1) then ! if snow layer is below surface snow layer
                    !accumulate subsurface flux as a diagnostic for history file
-                   sub_surf_abs_SW(p) = sub_surf_abs_SW(p) + sabg_lyr(p,i)
+                   if (i >= 1) then
+                      sub_surf_abs_SW(p) = sub_surf_abs_SW(p) + sabg_lyr(p,1)+sabg_lyr(p,2)     
+                   else
+                      sub_surf_abs_SW(p) = sub_surf_abs_SW(p) + sabg_lyr(p,i)
+                   endif
+                   
                 endif
              enddo
 
