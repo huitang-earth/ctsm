@@ -14,7 +14,7 @@ module SurfaceAlbedoMod
   use landunit_varcon   , only : istsoil, istcrop, istdlak
   use clm_varcon        , only : grlnd, namep
   use clm_varpar        , only : numrad, nlevcan, nlevsno, nlevcan
-  use clm_varctl        , only : fsurdat, iulog, use_snicar_frc, use_SSRE, use_mosslichen_rad
+  use clm_varctl        , only : fsurdat, iulog, use_snicar_frc, use_SSRE, use_mosslichen_rad, use_mosslichen_mode
   use pftconMod         , only : pftcon
   use SnowSnicarMod     , only : sno_nbr_aer, SNICAR_RT, DO_SNO_AER, DO_SNO_OC
   use AerosolMod        , only : aerosol_type
@@ -384,6 +384,8 @@ contains
           albgri        =>    surfalb_inst%albgri_col             , & ! Output:  [real(r8) (:,:) ]  ground albedo (diffuse)               
           albsod        =>    surfalb_inst%albsod_col             , & ! Output:  [real(r8) (:,:) ]  direct-beam soil albedo (col,bnd) [frc]
           albsoi        =>    surfalb_inst%albsoi_col             , & ! Output:  [real(r8) (:,:) ]  diffuse soil albedo (col,bnd) [frc]   
+          fabi_nv       =>    surfalb_inst%fabi_moss_col          , & ! Output:  [real(r8) (:,:) ]  direct-beam soil albedo (col,bnd) [frc]
+          fabd_nv       =>    surfalb_inst%fabd_moss_col          , & ! Output:  [real(r8) (:,:) ]  diffuse soil albedo (col,bnd) [frc]   
           albgrd_pur    =>    surfalb_inst%albgrd_pur_col         , & ! Output:  [real(r8) (:,:) ]  pure snow ground albedo (direct)      
           albgri_pur    =>    surfalb_inst%albgri_pur_col         , & ! Output:  [real(r8) (:,:) ]  pure snow ground albedo (diffuse)     
           albgrd_bc     =>    surfalb_inst%albgrd_bc_col          , & ! Output:  [real(r8) (:,:) ]  ground albedo without BC (direct)     
@@ -551,9 +553,11 @@ contains
 !Hui: should do filter here, to recognize patches covered by moss and lichen to have different treatment.
 !     FATES can not handle the patches without moss and lichen
        do c=bounds%begc,bounds%endc
-           albsfc_nv(c,:)     = 0                   ! create a new variable to keep moss and lichen albedo for column
-           albsfc_nv_d(c,:)     = 0 
-           wtcol_nv(c,:)     = 0                   ! keep the sum of moss and lichen area weight in a column
+           albsfc_nv(c,:)     =0                   ! create a new variable to keep moss and lichen albedo for column
+           albsfc_nv_d(c,:)   =0 
+           fabi_nv(c,:)       =0                   ! absorbed fraction of moss need to be set to 0 for each time step
+           fabd_nv(c,:)       =0
+           wtcol_nv(c,:)      =0                   ! keep the sum of moss and lichen area weight in a column
        end do
        
        ! sum up non-vascular plant albedo
@@ -565,8 +569,10 @@ contains
              ! how to aggregate surface albedo for moss and lichen? Starting from cohort to patch to column
              ! assume moss and lichen cover limited fraction of soil rather than the whole soil column
              albsfc_nv(c,ib)  = albsfc_nv(c,ib) + albi(p,ib) * patch%wtcol(p)
-             albsfc_nv_d(c,ib)  = albsfc_nv_d(c,ib) + albd(p,ib) * patch%wtcol(p)
-             wtcol_nv(c,ib) = wtcol_nv(c,ib)+patch%wtcol(p)
+             albsfc_nv_d(c,ib)  = albsfc_nv_d(c,ib) + albd(p,ib) * patch%wtcol(p)             
+             fabi_nv(c,ib)=fabi_nv(c,ib)+fabi(p,ib) * patch%wtcol(p)   ! get absorption rate for moss
+             fabd_nv(c,ib)=fabd_nv(c,ib)+fabd(p,ib) * patch%wtcol(p) 
+             wtcol_nv(c,ib) = wtcol_nv(c,ib)+patch%wtcol(p)             
              print *, "test_rad2: albi, wtcol=", albi(p,ib), patch%wtcol(p),albd(p,ib)
           end do
        end do
@@ -1208,7 +1214,15 @@ contains
              l = col%landunit(c)
 
              if (lun%itype(l) == istsoil .or. lun%itype(l) == istcrop)  then ! soil
-                inc    = max(0.11_r8-0.40_r8*h2osoi_vol(c,1), 0._r8)
+                !Hui: if moss occupy the top soil layer in the mixed representation,
+                !     use soil moisture from the second layer (not the top moss layer) 
+                !     to derive soil moisture modifier for albedo.
+                if (use_mosslichen_mode>0) then
+                   inc    = max(0.11_r8-0.40_r8*h2osoi_vol(c,2), 0._r8)
+                else
+                   inc    = max(0.11_r8-0.40_r8*h2osoi_vol(c,1), 0._r8)
+                endif
+                
                 soilcol = isoicol(c)
                 ! changed from local variable to clm_type:
                 !albsod = min(albsat(soilcol,ib)+inc, albdry(soilcol,ib))
