@@ -215,7 +215,7 @@ contains
              dzsoi(j) = 10._r8
           enddo
        else if (soil_layerstruct_predefined == '20SL_8.5m') then
-          if (if (use_mosslichen .and. use_mosslichen_mode>0)) then
+          if (use_mosslichen .and. use_mosslichen_mode>0) then
             !Hui: moss layer
             dzsoi(1)=0.02_r8
             !Hui: use the same soil depth structure from level 2.
@@ -492,8 +492,14 @@ contains
     do g = bounds%begg,bounds%endg
        grc%nbedrock(g) = nlevsoi
        do j = jmin_bedrock,nlevsoi 
-          if (zisoi(j-1) < zbedrock_in(g) .and. zisoi(j) >= zbedrock_in(g)) then
-             grc%nbedrock(g) = j
+          if (use_mosslichen .and. use_mosslichen_mode>0) then
+            if ((zisoi(j-1)-0.02)<zbedrock_in(g) .and. (zisoi(j)-0.02)>=zbedrock_in(g)) then
+               grc%nbedrock(g) = j
+            end if
+          else
+            if (zisoi(j-1) < zbedrock_in(g) .and. zisoi(j) >= zbedrock_in(g)) then
+               grc%nbedrock(g) = j
+            end if
           end if
        end do
     end do
