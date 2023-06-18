@@ -1498,7 +1498,7 @@ contains
     SHR_ASSERT_ALL_FL((ubound(hs_soil)       == (/bounds%endc/)),   sourcefile, __LINE__)
     SHR_ASSERT_ALL_FL((ubound(hs_top)        == (/bounds%endc/)),   sourcefile, __LINE__)
     SHR_ASSERT_ALL_FL((ubound(dhsdT)         == (/bounds%endc/)),   sourcefile, __LINE__)
-    SHR_ASSERT_ALL_FL((ubound(sabg_lyr_col)  == (/bounds%endc,1/)), sourcefile, __LINE__)
+    SHR_ASSERT_ALL_FL((ubound(sabg_lyr_col)  == (/bounds%endc,2/)), sourcefile, __LINE__)
 
     associate(                                                                &
          snl                     => col%snl                                 , & ! Input:  [integer (:)    ]  number of snow layers
@@ -1868,7 +1868,7 @@ contains
     SHR_ASSERT_ALL_FL((ubound(hs_soil)      == (/bounds%endc/)),           sourcefile, __LINE__)
     SHR_ASSERT_ALL_FL((ubound(hs_top)       == (/bounds%endc/)),           sourcefile, __LINE__)
     SHR_ASSERT_ALL_FL((ubound(dhsdT)        == (/bounds%endc/)),           sourcefile, __LINE__)
-    SHR_ASSERT_ALL_FL((ubound(sabg_lyr_col) == (/bounds%endc, 1/)),        sourcefile, __LINE__)
+    SHR_ASSERT_ALL_FL((ubound(sabg_lyr_col) == (/bounds%endc, 2/)),        sourcefile, __LINE__)
     SHR_ASSERT_ALL_FL((ubound(tk)           == (/bounds%endc, nlevgrnd/)), sourcefile, __LINE__)
     SHR_ASSERT_ALL_FL((ubound(tk_h2osfc)    == (/bounds%endc/)),           sourcefile, __LINE__)
     SHR_ASSERT_ALL_FL((ubound(fact)         == (/bounds%endc, nlevgrnd/)), sourcefile, __LINE__)
@@ -1988,7 +1988,7 @@ contains
     SHR_ASSERT_ALL_FL((ubound(hs_top_snow)  == (/bounds%endc/)),           sourcefile, __LINE__)
     SHR_ASSERT_ALL_FL((ubound(hs_top)       == (/bounds%endc/)),           sourcefile, __LINE__)
     SHR_ASSERT_ALL_FL((ubound(dhsdT)        == (/bounds%endc/)),           sourcefile, __LINE__)
-    SHR_ASSERT_ALL_FL((ubound(sabg_lyr_col) == (/bounds%endc, 1/)),        sourcefile, __LINE__)
+    SHR_ASSERT_ALL_FL((ubound(sabg_lyr_col) == (/bounds%endc, 2/)),        sourcefile, __LINE__)
     SHR_ASSERT_ALL_FL((ubound(fact)         == (/bounds%endc, nlevgrnd/)), sourcefile, __LINE__)
     SHR_ASSERT_ALL_FL((ubound(fn)           == (/bounds%endc, nlevgrnd/)), sourcefile, __LINE__)
     SHR_ASSERT_ALL_FL((ubound(t_soisno)     == (/bounds%endc, nlevgrnd/)), sourcefile, __LINE__)
@@ -2151,7 +2151,7 @@ contains
     ! Enforce expected array sizes
     SHR_ASSERT_ALL_FL((ubound(hs_soil)      == (/bounds%endc/)),           sourcefile, __LINE__)
     SHR_ASSERT_ALL_FL((ubound(dhsdT)        == (/bounds%endc/)),           sourcefile, __LINE__)
-    SHR_ASSERT_ALL_FL((ubound(sabg_lyr_col) == (/bounds%endc, 1/)),        sourcefile, __LINE__)
+    SHR_ASSERT_ALL_FL((ubound(sabg_lyr_col) == (/bounds%endc, 2/)),        sourcefile, __LINE__)
     SHR_ASSERT_ALL_FL((ubound(fact)         == (/bounds%endc, nlevgrnd/)), sourcefile, __LINE__)
     SHR_ASSERT_ALL_FL((ubound(fn)           == (/bounds%endc, nlevgrnd/)), sourcefile, __LINE__)
     SHR_ASSERT_ALL_FL((ubound(fn_h2osfc)    == (/bounds%endc/)),           sourcefile, __LINE__)
