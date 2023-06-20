@@ -379,11 +379,15 @@ contains
          ! soil layers; top layer will have one offset and one extra coefficient
          tvector(c,1:nlevgrnd) = t_soisno(c,1:nlevgrnd)
 
+         ! print *, "t_soisno1=", t_soisno(c,:)
       enddo
 
       call t_startf( 'SoilTempBandDiag')
 
       ! Solve the system
+      
+      !print *, "rvector(begc:endc, :)=", rvector(begc:endc, :)
+      !print *, "bmatrix(begc:endc, :, :)=",bmatrix(begc:endc, :, :)
 
       call BandDiagonal(bounds, -nlevsno, nlevgrnd, jtop(begc:endc), jbot(begc:endc), &
            num_nolakec, filter_nolakec, nband, bmatrix(begc:endc, :, :), &
@@ -398,6 +402,8 @@ contains
             t_soisno(c,j) = tvector(c,j-1) !snow layers
          end do
          t_soisno(c,1:nlevgrnd)   = tvector(c,1:nlevgrnd)  !soil layers
+
+         !print *, "t_soisno2=", t_soisno(c,:)
 
          if (frac_h2osfc(c) == 0._r8) then
             t_h2osfc(c)=t_soisno(c,1)
@@ -508,9 +514,11 @@ contains
                t_grnd(c) = frac_sno_eff(c) * t_soisno(c,snl(c)+1) &
                     + (1.0_r8 - frac_sno_eff(c) - frac_h2osfc(c)) * t_soisno(c,1) &
                     + frac_h2osfc(c) * t_h2osfc(c)
+               !print *, "t_grnd1=", t_grnd(c)
             else
                t_grnd(c) = frac_sno_eff(c) * t_soisno(c,snl(c)+1) &
                     + (1.0_r8 - frac_sno_eff(c)) * t_soisno(c,1)
+               !print *, "t_grnd2=", t_grnd(c)
             end if
 
          else
@@ -578,6 +586,7 @@ contains
             end if
             if (j > 0 .and. j < nlevgrnd .and. (lun%itype(l) == istsoil .or. lun%itype(l) == istcrop)) then
                eflx_fgr(c,j) = -cnfac*fn(c,j) - (1._r8-cnfac)*fn1(c,j)
+               ! print *, "eflx_fgr=", c,j,eflx_fgr(c,j)
             else if (j == nlevgrnd .and. (lun%itype(l) == istsoil .or. lun%itype(l) == istcrop)) then
                eflx_fgr(c,j) = 0._r8
             end if
@@ -1674,6 +1683,7 @@ contains
 
                      do j = lyr_top,2,1
                         sabg_lyr_col(c,j) = sabg_lyr_col(c,j) + sabg_lyr(p,j) * patch%wtcol(p)
+                        print *, "sabg_lyr=",p,j,sabg_lyr(p,j), sabg_lyr_col(c,j)
                      enddo
                   else
 
@@ -1789,10 +1799,12 @@ contains
                   if (j == col%snl(c)+1) then
                      fact(c,j) = dtime/cv(c,j) * dz(c,j) / (0.5_r8*(z(c,j)-zi(c,j-1)+capr*(z(c,j+1)-zi(c,j-1))))
                      fn(c,j) = tk(c,j)*(t_soisno(c,j+1)-t_soisno(c,j))/(z(c,j+1)-z(c,j))
+                     !print *, "fact1=", c,j,fact(c,j),cv(c,j),dz(c,j),z(c,j),zi(c,j-1),tk(c,j),z(c,j+1),t_soisno(c,j+1),t_soisno(c,j)
                   else if (j <= nlevgrnd-1) then
                      fact(c,j) = dtime/cv(c,j)
                      fn(c,j) = tk(c,j)*(t_soisno(c,j+1)-t_soisno(c,j))/(z(c,j+1)-z(c,j))
                      dzm     = (z(c,j)-z(c,j-1))
+                     !print *, "fact2=", c,j,fact(c,j),cv(c,j),dz(c,j),z(c,j),zi(c,j-1),tk(c,j),z(c,j+1),t_soisno(c,j+1),t_soisno(c,j)
                   else if (j == nlevgrnd) then
                      fact(c,j) = dtime/cv(c,j)
                      fn(c,j) = eflx_bot(c)
@@ -2214,18 +2226,21 @@ contains
                if (j == col%snl(c)+1) then
                   rt(c,j) = t_soisno(c,j) +  fact(c,j)*( hs_top_snow(c) &
                        - dhsdT(c)*t_soisno(c,j) + cnfac*fn(c,j) )
+                  !print *, "rt0=", c,j,rt(c,j)
                else if (j == 1) then
                   ! this is the snow/soil interface layer
                   rt(c,j) = t_soisno(c,j) + fact(c,j) &
                        *((1._r8-frac_sno_eff(c))*(hs_soil(c) - dhsdT(c)*t_soisno(c,j)) &
                        + cnfac*(fn(c,j) - frac_sno_eff(c) * fn(c,j-1)))
-
                   rt(c,j) = rt(c,j) +  frac_sno_eff(c)*fact(c,j)*sabg_lyr_col(c,j)
+                  !print *, "rt1=", c,j,rt(c,j), fact(c,j), fn(c,j), fn(c,j-1), hs_soil(c), frac_sno_eff(c), dhsdT(c), sabg_lyr_col(c,j),t_soisno(c,j)
                else if (j == 2) then
                   rt(c,j) = t_soisno(c,j) + cnfac*fact(c,j)*( fn(c,j) - fn(c,j-1) )
                   rt(c,j) = rt(c,j) + (fact(c,j)*sabg_lyr_col(c,j))
+                  !print *, "rt2=", c,j,rt(c,j), sabg_lyr_col(c,j),fact(c,j),fn(c,j),fn(c,j-1), t_soisno(c,j)
                else if (j <= nlevgrnd-1) then
                   rt(c,j) = t_soisno(c,j) + cnfac*fact(c,j)*( fn(c,j) - fn(c,j-1) )
+                  !print *, "rt3=", c,j,rt(c,j)
                else if (j == nlevgrnd) then
                   rt(c,j) = t_soisno(c,j) - cnfac*fact(c,j)*fn(c,j-1) + fact(c,j)*fn(c,j)
                end if
