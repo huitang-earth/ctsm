@@ -572,6 +572,7 @@ contains
              albsfc_nv_d(c,ib)  = albsfc_nv_d(c,ib) + albd(p,ib) * patch%wtcol(p)             
              fabi_nv(c,ib)=fabi_nv(c,ib)+fabi(p,ib) * patch%wtcol(p)   ! get absorption rate for moss
              fabd_nv(c,ib)=fabd_nv(c,ib)+fabd(p,ib) * patch%wtcol(p) 
+             !print *, "fabi, fabd=", p, ib, fabi(p,ib), fabd(p,ib)
              wtcol_nv(c,ib) = wtcol_nv(c,ib)+patch%wtcol(p)             
              print *, "test_rad2: albi, wtcol=", albi(p,ib), patch%wtcol(p),albd(p,ib)
           end do
@@ -1219,6 +1220,7 @@ contains
                 !     to derive soil moisture modifier for albedo.
                 if (use_mosslichen_mode>0) then
                    inc    = max(0.11_r8-0.40_r8*h2osoi_vol(c,2), 0._r8)
+                   !print *, "inc, h2osoi_vol=", inc, h2osoi_vol(c,2)
                 else
                    inc    = max(0.11_r8-0.40_r8*h2osoi_vol(c,1), 0._r8)
                 endif
