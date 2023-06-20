@@ -621,9 +621,15 @@ contains
                                                    (perc_frac*om_frac)*om_hksat )
                                                    
 
-                             
-                tkm                                 = (1._r8-om_frac) * (params_inst%tkd_sand*sand+params_inst%tkd_clay*clay)/ &
+                if (use_mosslichen .and. use_mosslichen_mode ==1 .and. lev<=1) then 
+                   ! Hui: make sure that when sand+clay is zero, no divide to zero
+                   tkm                                 = params_inst%tkm_om*om_frac ! W/(m K)
+                   ! print *, "tkm=", soilstate_inst%csol_col(c,lev)
+                else               
+                   tkm                                 = (1._r8-om_frac) * (params_inst%tkd_sand*sand+params_inst%tkd_clay*clay)/ &
                                                       (sand+clay)+params_inst%tkm_om*om_frac ! W/(m K)
+                endif
+                
                 soilstate_inst%tkmg_col(c,lev)   = tkm ** (1._r8- soilstate_inst%watsat_col(c,lev))                                 !Hui: no need to be changed for moss (solid fraction for thermal conductivity)
 
                 soilstate_inst%tksatu_col(c,lev) = soilstate_inst%tkmg_col(c,lev)*0.57_r8**soilstate_inst%watsat_col(c,lev)         !Hui: not relevant for moss
@@ -631,8 +637,13 @@ contains
                 soilstate_inst%tkdry_col(c,lev)  = ((0.135_r8*soilstate_inst%bd_col(c,lev) + 64.7_r8) / &
                      (params_inst%pd - 0.947_r8*soilstate_inst%bd_col(c,lev)))*(1._r8-om_frac) + params_inst%tkd_om*om_frac  
 
-                soilstate_inst%csol_col(c,lev)   = ((1._r8-om_frac)*(params_inst%csol_sand*sand+ &
+                if (use_mosslichen .and. use_mosslichen_mode ==1 .and. lev<=1) then 
+                   soilstate_inst%csol_col(c,lev)   = params_inst%csol_om*om_frac*1.e6_r8  ! J/(m3 K)        
+                   ! print *, "soilstate_inst%csol_col(c,lev)=", soilstate_inst%csol_col(c,lev)        
+                else
+                   soilstate_inst%csol_col(c,lev)   = ((1._r8-om_frac)*(params_inst%csol_sand*sand+ &
                      params_inst%csol_clay*clay) / (sand+clay) + params_inst%csol_om*om_frac)*1.e6_r8  ! J/(m3 K)
+                end if
 
                 soilstate_inst%watdry_col(c,lev) = soilstate_inst%watsat_col(c,lev) * &                                           !Hui: not relevant for moss
                      (316230._r8/soilstate_inst%sucsat_col(c,lev)) ** (-1._r8/soilstate_inst%bsw_col(c,lev)) 
