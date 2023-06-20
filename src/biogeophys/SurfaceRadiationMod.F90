@@ -764,10 +764,12 @@ contains
                 ! Hui: Use column averaged absorption rate to avoid any unexpected too high patch values?
                 ! First moss layer absorb radiation as same as the absorbed radiation derived from FATES.
                 ! second soil layer get the rest of the incoming solar radiation. 
+                ! Hui: fabd_nv and fabi_nv need to be double checked as they are weighted by wtcol (not divided by wtcol to get unit fraction yet!)
                 sabg_lyr(p,1) = fabd_nv(c,1)*trd(p,1) + fabd_nv(c,2)*trd(p,2) + &
                      fabi_nv(c,1)*tri(p,1) + fabi_nv(c,2)*tri(p,2)                 
                 sabg_lyr(p,2) = sabg(p)-sabg_lyr(p,1)             
                 sabg_snl_sum  = sum(sabg_lyr(p,1:2))
+                !print *, "fabd_nv1=", fabd_nv(c,1), fabd_nv(c,2), fabi_nv(c,1), fabi_nv(c,2), sabg_lyr(p,1), sabg_lyr(p,2)
              else
                 sabg_lyr(p,1) = sabg(p)             
                 sabg_snl_sum  = sabg_lyr(p,1)
@@ -785,10 +787,11 @@ contains
                      flx_absiv(c,i)*tri(p,1) + flx_absin(c,i)*tri(p,2)
                else
                   if (use_mosslichen_mode>0) then
-                    sabg_lyr(p,1) = fabd_nv(c,1)*trd(p,1) + fabd_nv(c,2)*trd(p,2) + &
+                    sabg_lyr(p,i) = fabd_nv(c,1)*trd(p,1) + fabd_nv(c,2)*trd(p,2) + &
                          fabi_nv(c,1)*tri(p,1) + fabi_nv(c,2)*tri(p,2)
-                    sabg_lyr(p,2) = (flx_absdv(c,i)*trd(p,1) + flx_absdn(c,i)*trd(p,2) + &
+                    sabg_lyr(p,i+1) = (flx_absdv(c,i)*trd(p,1) + flx_absdn(c,i)*trd(p,2) + &
                          flx_absiv(c,i)*tri(p,1) + flx_absin(c,i)*tri(p,2))-sabg_lyr(p,1)
+                    print *, "fabd_nv2=", fabd_nv(c,1), fabd_nv(c,2), fabi_nv(c,1), fabi_nv(c,2), sabg_lyr(p,1), sabg_lyr(p,2)
                   else
                     sabg_lyr(p,i) = flx_absdv(c,i)*trd(p,1) + flx_absdn(c,i)*trd(p,2) + &
                      flx_absiv(c,i)*tri(p,1) + flx_absin(c,i)*tri(p,2)                    
