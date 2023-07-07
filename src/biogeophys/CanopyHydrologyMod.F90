@@ -1329,7 +1329,7 @@ contains
                 if (use_mosslichen_water == 1) then
                    vegt    = frac_veg_nosno(p)*(elai(p) + esai(p))*mosslichen_elai_tmp(c)
                    fwet(p) = (h2ocan / (vegt * 2._r8))
-                   fwet(p) = min (fwet(p),1._r8)   ! maximum limit of fwet is 1, not 0.05 as default
+                   fwet(p) = min (fwet(p),maximum_leaf_wetted_fraction)   ! maximum limit of fwet is 1, not 0.05 as default
                    if (snocan(p) > 0._r8) then
                       fcansno(p) = (snocan(p) / (vegt * 10._r8)) ! must match snocanmx 
                       fcansno(p) = min (fcansno(p),1.0_r8)
