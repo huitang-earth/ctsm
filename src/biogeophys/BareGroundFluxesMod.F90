@@ -427,7 +427,9 @@ contains
             endif
             if(do_soil_resistance_sl14())then
                ! Swenson & Lawrence 2014 soil resistance is applied
-               raiw    = forc_rho(c)/(raw+soilresis(c))
+               ! Hui: remove soilresis for testing
+               !raiw    = forc_rho(c)/(raw+soilresis(c))
+               raiw    = forc_rho(c)/(raw)
             endif
          end if
 
