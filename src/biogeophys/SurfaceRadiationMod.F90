@@ -7,7 +7,7 @@ module SurfaceRadiationMod
   ! !USES:
   use shr_kind_mod      , only : r8 => shr_kind_r8
   use shr_log_mod       , only : errMsg => shr_log_errMsg
-  use clm_varctl        , only : use_snicar_frc, use_fates, use_mosslichen_mode
+  use clm_varctl        , only : use_snicar_frc, use_fates, use_mosslichen_mode, use_mosslichen_photosyn
   use decompMod         , only : bounds_type
   use clm_varcon        , only : namec
   use atm2lndType       , only : atm2lnd_type
@@ -20,6 +20,7 @@ module SurfaceRadiationMod
   use ColumnType        , only : col
   use PatchType         , only : patch
   use landunit_varcon   , only : istdlak
+  use EDPftvarcon         , only : EDPftvarcon_inst
 
   ! !PRIVATE TYPES:
   implicit none
@@ -760,20 +761,20 @@ contains
           if (snl(c) == 0) then
              sabg_lyr(p,:) = 0._r8
              
-             if (use_mosslichen_mode>0) then
+             !if (use_mosslichen_mode>0 .and. use_mosslichen_photosyn>0 .and. (EDPftvarcon_inst%stomatal_model(patch%itype(p)) == 3 .or. EDPftvarcon_inst%stomatal_model(patch%itype(p)) == 4)) then
                 ! Hui: Use column averaged absorption rate to avoid any unexpected too high patch values?
                 ! First moss layer absorb radiation as same as the absorbed radiation derived from FATES.
                 ! second soil layer get the rest of the incoming solar radiation. 
                 ! Hui: fabd_nv and fabi_nv need to be double checked as they are weighted by wtcol (not divided by wtcol to get unit fraction yet!)
-                sabg_lyr(p,1) = fabd_nv(c,1)*trd(p,1) + fabd_nv(c,2)*trd(p,2) + &
-                     fabi_nv(c,1)*tri(p,1) + fabi_nv(c,2)*tri(p,2)                 
-                sabg_lyr(p,2) = sabg(p)-sabg_lyr(p,1)             
-                sabg_snl_sum  = sum(sabg_lyr(p,1:2))
+                !sabg_lyr(p,1) = fabd_nv(c,1)*trd(p,1) + fabd_nv(c,2)*trd(p,2) + &
+                !     fabi_nv(c,1)*tri(p,1) + fabi_nv(c,2)*tri(p,2)                 
+                !sabg_lyr(p,2) = sabg(p)-sabg_lyr(p,1)             
+                !sabg_snl_sum  = sum(sabg_lyr(p,1:2))
                 !print *, "fabd_nv1=", fabd_nv(c,1), fabd_nv(c,2), fabi_nv(c,1), fabi_nv(c,2), sabg_lyr(p,1), sabg_lyr(p,2)
-             else
+             !else
                 sabg_lyr(p,1) = sabg(p)             
                 sabg_snl_sum  = sabg_lyr(p,1)
-             endif
+             !endif
 
              ! CASE 2: Snow layers present: absorbed radiation is scaled according to
              ! flux factors computed by SNICAR
@@ -786,16 +787,16 @@ contains
                    sabg_lyr(p,i) = flx_absdv(c,i)*trd(p,1) + flx_absdn(c,i)*trd(p,2) + &
                      flx_absiv(c,i)*tri(p,1) + flx_absin(c,i)*tri(p,2)
                else
-                  if (use_mosslichen_mode>0) then
-                    sabg_lyr(p,i) = fabd_nv(c,1)*trd(p,1) + fabd_nv(c,2)*trd(p,2) + &
-                         fabi_nv(c,1)*tri(p,1) + fabi_nv(c,2)*tri(p,2)
-                    sabg_lyr(p,i+1) = (flx_absdv(c,i)*trd(p,1) + flx_absdn(c,i)*trd(p,2) + &
-                         flx_absiv(c,i)*tri(p,1) + flx_absin(c,i)*tri(p,2))-sabg_lyr(p,1)
-                    print *, "fabd_nv2=", fabd_nv(c,1), fabd_nv(c,2), fabi_nv(c,1), fabi_nv(c,2), sabg_lyr(p,1), sabg_lyr(p,2)
-                  else
+                  !if (use_mosslichen_mode>0 .and. use_mosslichen_photosyn>0) then
+                  !  sabg_lyr(p,i) = fabd_nv(c,1)*trd(p,1) + fabd_nv(c,2)*trd(p,2) + &
+                   !      fabi_nv(c,1)*tri(p,1) + fabi_nv(c,2)*tri(p,2)
+                  !  sabg_lyr(p,i+1) = (flx_absdv(c,i)*trd(p,1) + flx_absdn(c,i)*trd(p,2) + &
+                  !       flx_absiv(c,i)*tri(p,1) + flx_absin(c,i)*tri(p,2))-sabg_lyr(p,1)
+                  !  print *, "fabd_nv2=", fabd_nv(c,1), fabd_nv(c,2), fabi_nv(c,1), fabi_nv(c,2), sabg_lyr(p,1), sabg_lyr(p,2)
+                  !else
                     sabg_lyr(p,i) = flx_absdv(c,i)*trd(p,1) + flx_absdn(c,i)*trd(p,2) + &
                      flx_absiv(c,i)*tri(p,1) + flx_absin(c,i)*tri(p,2)                    
-                  endif
+                  !endif
                endif        
                
                 ! summed radiation in active snow layers:

@@ -14,7 +14,7 @@ module SurfaceAlbedoMod
   use landunit_varcon   , only : istsoil, istcrop, istdlak
   use clm_varcon        , only : grlnd, namep
   use clm_varpar        , only : numrad, nlevcan, nlevsno, nlevcan
-  use clm_varctl        , only : fsurdat, iulog, use_snicar_frc, use_SSRE, use_mosslichen_rad, use_mosslichen_mode
+  use clm_varctl        , only : fsurdat, iulog, use_snicar_frc, use_SSRE, use_mosslichen_rad, use_mosslichen_mode, use_mosslichen_photosyn
   use pftconMod         , only : pftcon
   use SnowSnicarMod     , only : sno_nbr_aer, SNICAR_RT, DO_SNO_AER, DO_SNO_OC
   use AerosolMod        , only : aerosol_type
@@ -571,16 +571,21 @@ contains
              albsfc_nv(c,ib)  = albsfc_nv(c,ib) + albi(p,ib) * patch%wtcol(p)
              albsfc_nv_d(c,ib)  = albsfc_nv_d(c,ib) + albd(p,ib) * patch%wtcol(p)             
              fabi_nv(c,ib)=fabi_nv(c,ib)+fabi(p,ib) * patch%wtcol(p)   ! get absorption rate for moss
-             fabd_nv(c,ib)=fabd_nv(c,ib)+fabd(p,ib) * patch%wtcol(p) 
+             fabd_nv(c,ib)=fabd_nv(c,ib)+fabd(p,ib) * patch%wtcol(p)    
              !print *, "fabi, fabd=", p, ib, fabi(p,ib), fabd(p,ib)
-             wtcol_nv(c,ib) = wtcol_nv(c,ib)+patch%wtcol(p)             
+             wtcol_nv(c,ib) = wtcol_nv(c,ib)+patch%wtcol(p)                                       
              print *, "test_rad2: albi, wtcol=", albi(p,ib), patch%wtcol(p),albd(p,ib)
-          end do
+          end do          
        end do
+              
        print *, "test_rad3: albsfc_nv, wtcol_nv=", albsfc_nv(:,:), wtcol_nv(:,:)
        
        ! sum up soil and non-vascular plant albedo
        do c=bounds%begc,bounds%endc
+          if (wtcol_nv(c,1)>0) then            ! Hui: need to calculate column averaged absorption rate
+             fabi_nv(c,:)=fabi_nv(c,:)/wtcol_nv(c,:)
+             fabd_nv(c,:)=fabd_nv(c,:)/wtcol_nv(c,:)
+          end if   
           if(use_mosslichen_rad == 2 .or. use_mosslichen_rad == 4 .or. (use_mosslichen_rad == 5 .and. snow_depth(c)>0.05))then
              albsfc(c,:)     = albsoi(c,:)*(1-wtcol_nv(c,:))+albsfc_nv(c,:)        ! Weighted average of moss/lichen albedo and soil albedo
              albsfc_d(c,:)   = albsod(c,:)*(1-wtcol_nv(c,:))+albsfc_nv_d(c,:)
@@ -1218,7 +1223,7 @@ contains
                 !Hui: if moss occupy the top soil layer in the mixed representation,
                 !     use soil moisture from the second layer (not the top moss layer) 
                 !     to derive soil moisture modifier for albedo.
-                if (use_mosslichen_mode>0) then
+                if (use_mosslichen_mode>0 .and. use_mosslichen_photosyn>0) then
                    inc    = max(0.11_r8-0.40_r8*h2osoi_vol(c,2), 0._r8)
                    !print *, "inc, h2osoi_vol=", inc, h2osoi_vol(c,2)
                 else
