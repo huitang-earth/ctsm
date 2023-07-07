@@ -370,7 +370,7 @@ contains
             units='proportion', &
             avgflag='A', &
             long_name=this%info%lname('fraction of moss that is wet'), &
-            ptr_patch=this%fwet_moss_col, default='active')
+            ptr_col=this%fwet_moss_col, default='active')
     end if
 
     if (use_cn) then
