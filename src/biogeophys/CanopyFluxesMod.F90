@@ -326,6 +326,10 @@ contains
     real(r8) :: deldT                                ! derivative of "el" on "t_veg" [pa/K]
     real(r8) :: qsatl(bounds%begp:bounds%endp)       ! leaf specific humidity [kg/kg]
     real(r8) :: qsatldT(bounds%begp:bounds%endp)     ! derivative of "qsatl" on "t_veg"
+    real(r8) :: eg(bounds%begc:bounds%endc)          ! vapor pressure on soil surface [pa]
+    real(r8) :: degdT                                ! derivative of "eg" on "t_soil" [pa/K]
+    real(r8) :: qsatg(bounds%begc:bounds%endc)       ! soil surface specific humidity [kg/kg]
+    real(r8) :: qsatgdT_soil                         ! derivative of "qsatg" on "t_soil"
     real(r8) :: e_ref2m                              ! 2 m height surface saturated vapor pressure [Pa]
     real(r8) :: de2mdT                               ! derivative of 2 m height surface saturated vapor pressure on t_ref2m
     real(r8) :: qsat_ref2m                           ! 2 m height surface saturated specific humidity [kg/kg]
@@ -751,6 +755,7 @@ contains
          ! at the leaf surface
 
          call QSat (t_veg(p), forc_pbot(c), el(p), deldT, qsatl(p), qsatldT(p))
+         call QSat (t_soisno(c,1), forc_pbot(c), eg(c), degdT, qsatg(c), qsatgdT_soil)
 
          ! Determine atmospheric co2 and o2
 
@@ -925,7 +930,7 @@ contains
                  svpts(p) = el(p)     ! pa
               else
                  !svpts(p) = qg_soil(c)
-                 svpts(p) = qg_soil(c)*(1-mosslichen_elai_tmp(p))+el(p)*mosslichen_elai_tmp(p)    ! pa
+                 svpts(p) = eg(c)*(1-mosslichen_elai_tmp(p))+el(p)*mosslichen_elai_tmp(p)    ! pa
               end if
             else
                svpts(p) = el(p) 
