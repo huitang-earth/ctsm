@@ -874,7 +874,7 @@ contains
            
            if ( EDPftvarcon_inst%stomatal_model(patch%itype(p)) == 3 .or. EDPftvarcon_inst%stomatal_model(patch%itype(p)) == 4 ) then ! Moss & lichen
               if (use_mosslichen_water == 1) then
-                 snocanmx = 10._r8 * (elai(p) + esai(p))*mosslichen_elai_tmp(c)  ! default = 6
+                 snocanmx = 5._r8 * (elai(p) + esai(p))*mosslichen_elai_tmp(c)  ! default = 6
               else
                  snocanmx = 0._r8
               end if
