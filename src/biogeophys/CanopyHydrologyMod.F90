@@ -863,7 +863,7 @@ contains
            if ( EDPftvarcon_inst%stomatal_model(patch%itype(p)) == 3 .or. EDPftvarcon_inst%stomatal_model(patch%itype(p)) == 4 ) then ! Moss & lichen
               if (use_mosslichen_water == 1) then
                  !print *, "moss or lichen 3"
-                 liqcanmx = 2._r8 * (elai(p) + esai(p))*mosslichen_elai_tmp(c)
+                 liqcanmx = params_inst%liq_canopy_storage_scalar  * (elai(p) + esai(p))*mosslichen_elai_tmp(c)
               else
                  liqcanmx = 0._r8
               end if
@@ -874,7 +874,7 @@ contains
            
            if ( EDPftvarcon_inst%stomatal_model(patch%itype(p)) == 3 .or. EDPftvarcon_inst%stomatal_model(patch%itype(p)) == 4 ) then ! Moss & lichen
               if (use_mosslichen_water == 1) then
-                 snocanmx = 5._r8 * (elai(p) + esai(p))*mosslichen_elai_tmp(c)  ! default = 6
+                 snocanmx = params_inst%snow_canopy_storage_scalar * (elai(p) + esai(p))*mosslichen_elai_tmp(c)  ! default = 6
               else
                  snocanmx = 0._r8
               end if
@@ -1328,10 +1328,10 @@ contains
                 print *, "moss or lichen 2"
                 if (use_mosslichen_water == 1) then
                    vegt    = frac_veg_nosno(p)*(elai(p) + esai(p))*mosslichen_elai_tmp(c)
-                   fwet(p) = (h2ocan / (vegt * 2._r8))
+                   fwet(p) = (h2ocan / (vegt * params_inst%liq_canopy_storage_scalar))**0.666666666666_r8
                    fwet(p) = min (fwet(p),maximum_leaf_wetted_fraction)   ! maximum limit of fwet is 1, not 0.05 as default
                    if (snocan(p) > 0._r8) then
-                      fcansno(p) = (snocan(p) / (vegt * 10._r8)) ! must match snocanmx 
+                      fcansno(p) = (snocan(p) / (vegt * params_inst%snow_canopy_storage_scalar))**0.15_r8 ! must match snocanmx 
                       fcansno(p) = min (fcansno(p),1.0_r8)
                    else
                       fcansno(p) = 0._r8
