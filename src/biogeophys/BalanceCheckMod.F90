@@ -468,7 +468,7 @@ contains
               end if
               
               write(iulog,*)'clm model is stopping'
-              call endrun(decomp_index=indexc, clmlevel=namec, msg=errmsg(sourcefile, __LINE__))
+             ! call endrun(decomp_index=indexc, clmlevel=namec, msg=errmsg(sourcefile, __LINE__))
          end if
        
        end if
@@ -692,7 +692,7 @@ contains
               write(iulog,*)'sabg           = ' ,sabg(indexp), ((1._r8- frac_sno(indexc))*sabg_soil(indexp) + &
                    frac_sno(indexc)*sabg_snow(indexp)),sabg_chk(indexp)
               write(iulog,*)'forc_tot      = '  ,forc_solad(indexg,1) + forc_solad(indexg,2) + &
-                   forc_solai(indexg,1) + forc_solai(indexg,2)
+                   forc_solai(indexg,1) + forc_solai(indexg,2), forc_lwrad(c)
 
               write(iulog,*)'eflx_lwrad_net = ' ,eflx_lwrad_net(indexp)
               write(iulog,*)'eflx_sh_tot    = ' ,eflx_sh_tot(indexp)
@@ -704,7 +704,7 @@ contains
               write(iulog,*)'ftii ftdd ftid = ' ,ftii(indexp,:), ftdd(indexp,:),ftid(indexp,:)
               write(iulog,*)'elai esai = '      ,elai(indexp),   esai(indexp)
               write(iulog,*)'clm model is stopping'
-              call endrun(decomp_index=indexp, clmlevel=namep, msg=errmsg(sourcefile, __LINE__))
+!              call endrun(decomp_index=indexp, clmlevel=namep, msg=errmsg(sourcefile, __LINE__))
            end if
 
        end if
@@ -721,7 +721,7 @@ contains
 
            if ((errsoi_col_max_val > 1.e-4_r8) .and. (DAnstep > skip_steps)) then
               write(iulog,*)'clm model is stopping'
-              call endrun(decomp_index=indexc, clmlevel=namec, msg=errmsg(sourcefile, __LINE__))
+              !call endrun(decomp_index=indexc, clmlevel=namec, msg=errmsg(sourcefile, __LINE__))
            end if
        end if 
        

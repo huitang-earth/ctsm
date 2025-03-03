@@ -19,7 +19,7 @@ module initVerticalMod
   use clm_varctl        , only : use_vancouver, use_mexicocity, use_vertsoilc, use_extralakelayers
   use clm_varctl        , only : use_bedrock, rundef
   use clm_varctl        , only : soil_layerstruct_predefined, soil_layerstruct_userdefined
-  use clm_varctl        , only : use_fates
+  use clm_varctl        , only : use_fates, use_mosslichen_mode, use_mosslichen
   use clm_varcon        , only : zlak, dzlak, zsoi, dzsoi, zisoi, dzsoi_decomp, spval, ispval, grlnd 
   use column_varcon     , only : icol_roof, icol_sunwall, icol_shadewall, is_hydrologically_active
   use landunit_varcon   , only : istdlak, istice_mec
@@ -215,18 +215,36 @@ contains
              dzsoi(j) = 10._r8
           enddo
        else if (soil_layerstruct_predefined == '20SL_8.5m') then
-          do j = 1, 4  ! linear increase in layer thickness of...
-             dzsoi(j) = j * 0.02_r8                     ! ...2 cm each layer
-          enddo
-          do j = 5, 13
-             dzsoi(j) = dzsoi(4) + (j - 4) * 0.04_r8    ! ...4 cm each layer
-          enddo
-          do j = 14, nlevsoi
-             dzsoi(j) = dzsoi(13) + (j - 13) * 0.10_r8  ! ...10 cm each layer
-          enddo
-          do j = nlevsoi + 1, nlevgrnd  ! bedrock layers
-             dzsoi(j) = dzsoi(nlevsoi) + (((j - nlevsoi) * 25._r8)**1.5_r8) / 100._r8
-          enddo
+          if (use_mosslichen .and. use_mosslichen_mode>0) then
+            !Hui: moss layer
+            dzsoi(1)=0.02_r8
+            !Hui: use the same soil depth structure from level 2.
+            do j = 2, 5  ! linear increase in layer thickness of...
+              dzsoi(j) = (j-1) * 0.02_r8                     ! ...2 cm each layer
+            enddo
+            do j = 6, 14
+              dzsoi(j) = dzsoi(5) + (j - 5) * 0.04_r8    ! ...4 cm each layer
+            enddo
+            do j = 15, nlevsoi
+              dzsoi(j) = dzsoi(14) + (j - 14) * 0.10_r8  ! ...10 cm each layer
+            enddo
+            do j = nlevsoi + 1, nlevgrnd  ! bedrock layers
+              dzsoi(j) = dzsoi(nlevsoi) + (((j - nlevsoi) * 25._r8)**1.5_r8) / 100._r8
+            enddo          
+          else
+            do j = 1, 4  ! linear increase in layer thickness of...
+               dzsoi(j) = j * 0.02_r8                     ! ...2 cm each layer
+            enddo
+            do j = 5, 13
+              dzsoi(j) = dzsoi(4) + (j - 4) * 0.04_r8    ! ...4 cm each layer
+            enddo
+            do j = 14, nlevsoi
+              dzsoi(j) = dzsoi(13) + (j - 13) * 0.10_r8  ! ...10 cm each layer
+            enddo
+            do j = nlevsoi + 1, nlevgrnd  ! bedrock layers
+              dzsoi(j) = dzsoi(nlevsoi) + (((j - nlevsoi) * 25._r8)**1.5_r8) / 100._r8
+            enddo
+          endif
        else if (soil_layerstruct_predefined == '4SL_2m') then
           dzsoi(1) = 0.1_r8
           dzsoi(2) = 0.3_r8
@@ -474,8 +492,14 @@ contains
     do g = bounds%begg,bounds%endg
        grc%nbedrock(g) = nlevsoi
        do j = jmin_bedrock,nlevsoi 
-          if (zisoi(j-1) < zbedrock_in(g) .and. zisoi(j) >= zbedrock_in(g)) then
-             grc%nbedrock(g) = j
+          if (use_mosslichen .and. use_mosslichen_mode>0) then
+            if ((zisoi(j-1)-0.02)<zbedrock_in(g) .and. (zisoi(j)-0.02)>=zbedrock_in(g)) then
+               grc%nbedrock(g) = j
+            end if
+          else
+            if (zisoi(j-1) < zbedrock_in(g) .and. zisoi(j) >= zbedrock_in(g)) then
+               grc%nbedrock(g) = j
+            end if
           end if
        end do
     end do

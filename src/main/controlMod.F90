@@ -229,7 +229,13 @@ contains
           use_fates_sp,                                 &
           fates_inventory_ctrl_filename,                &
           fates_parteh_mode
-    
+          
+    ! moss and lichen Flags
+    namelist /clm_inparm/ use_mosslichen,               &
+          use_mosslichen_mode, use_mosslichen_photosyn,  &
+          use_mosslichen_photo_flux, use_mosslichen_water,   &
+          use_mosslichen_rad,         &
+          use_mosslichen_bvoc, mosslichen_elai
 
     ! CLM 5.0 nitrogen flags
     namelist /clm_inparm/ use_flexibleCN, use_luna
@@ -467,6 +473,12 @@ contains
              call endrun(msg=' ERROR: ozone is not compatible with FATES.'//&
                   errMsg(sourcefile, __LINE__))
           end if
+       end if
+       
+       ! Consistency settings for mosslichen_elai
+       if ( (mosslichen_elai < 0.0_r8) .or. (mosslichen_elai > 1.0_r8) ) then
+          call endrun(msg=' ERROR: mosslichen_elai is out of a reasonable range 0-1'//& 
+               errMsg(sourcefile, __LINE__))
        end if
 
        ! If nfix_timeconst is equal to the junk default value, then it was not specified
@@ -722,6 +734,16 @@ contains
     call mpi_bcast (fates_inventory_ctrl_filename, len(fates_inventory_ctrl_filename), MPI_CHARACTER, 0, mpicom, ier)
     call mpi_bcast (fates_paramfile, len(fates_paramfile) , MPI_CHARACTER, 0, mpicom, ier)
     call mpi_bcast (fates_parteh_mode, 1, MPI_INTEGER, 0, mpicom, ier)
+    
+    ! moss and lichen model
+    call mpi_bcast (use_mosslichen, 1, MPI_LOGICAL, 0, mpicom, ier)
+    call mpi_bcast (use_mosslichen_mode, 1, MPI_INTEGER, 0, mpicom, ier)
+    call mpi_bcast (use_mosslichen_photosyn, 1, MPI_INTEGER, 0, mpicom, ier)
+    call mpi_bcast (use_mosslichen_bvoc, 1, MPI_LOGICAL, 0, mpicom, ier)
+    call mpi_bcast (use_mosslichen_photo_flux, 1, MPI_INTEGER, 0, mpicom, ier)
+    call mpi_bcast (use_mosslichen_water, 1, MPI_INTEGER, 0, mpicom, ier)
+    call mpi_bcast (use_mosslichen_rad, 1, MPI_INTEGER, 0, mpicom, ier)
+    call mpi_bcast (mosslichen_elai, 1, MPI_REAL8, 0, mpicom, ier)
 
     ! flexibleCN nitrogen model
     call mpi_bcast (use_flexibleCN, 1, MPI_LOGICAL, 0, mpicom, ier)
@@ -1076,6 +1098,18 @@ contains
        write(iulog, *) '    use_fates_sp = ', use_fates_sp
        write(iulog, *) '    fates_inventory_ctrl_filename = ',fates_inventory_ctrl_filename
     end if
+    
+    if (use_mosslichen) then
+       write(iulog, *) '    use_mosslichen = ', use_mosslichen
+       write(iulog, *) '    use_mosslichen_mode = ', use_mosslichen_mode
+       write(iulog, *) '    use_mosslichen_photosyn = ', use_mosslichen_photosyn
+       write(iulog, *) '    use_mosslichen_photo_flux = ', use_mosslichen_photo_flux
+       write(iulog, *) '    use_mosslichen_water= ',use_mosslichen_water
+       write(iulog, *) '    use_mosslichen_rad = ',use_mosslichen_rad
+       write(iulog, *) '    use_mosslichen_bvoc = ', use_mosslichen_bvoc
+       write(iulog, *) '    mosslichen_elai = ', mosslichen_elai
+    end if
+    
   end subroutine control_print
 
 

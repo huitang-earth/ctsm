@@ -62,6 +62,7 @@ module CLMFatesInterfaceMod
    use clm_varctl        , only : use_fates_sp
    use clm_varctl        , only : fates_inventory_ctrl_filename
    use clm_varctl        , only : use_nitrif_denitrif
+   use clm_varctl        , only : use_mosslichen, use_mosslichen_rad, use_mosslichen_photosyn
    use clm_varcon        , only : tfrz
    use clm_varcon        , only : spval 
    use clm_varcon        , only : denice
@@ -137,6 +138,7 @@ module CLMFatesInterfaceMod
    use EDCanopyStructureMod  , only : canopy_summarization, update_hlm_dynamics
    use FatesPlantRespPhotosynthMod, only : FatesPlantRespPhotosynthDrive
    use EDAccumulateFluxesMod , only : AccumulateFluxes_ED
+   use EDPhysiologyMod          , only : satellite_phenology
    use FatesSoilBGCFluxMod    , only : FluxIntoLitterPools
    use FatesSoilBGCFluxMod    , only : UnPackNutrientAquisitionBCs
    use FatesPlantHydraulicsMod, only : hydraulics_drive
@@ -208,6 +210,7 @@ module CLMFatesInterfaceMod
       procedure, public :: wrap_accumulatefluxes
       procedure, public :: prep_canopyfluxes
       procedure, public :: wrap_canopy_radiation
+      procedure, public :: wrap_mosslichen_radiation
       procedure, public :: wrap_update_hifrq_hist
       procedure, public :: TransferZ0mDisp
       procedure, public :: InterpFileInputs  ! Interpolate inputs from files
@@ -271,6 +274,9 @@ module CLMFatesInterfaceMod
      integer                                        :: pass_biogeog 
      integer                                        :: pass_nocomp
      integer                                        :: pass_sp
+     integer                                        :: pass_mosslichen
+     integer                                        :: pass_mosslichen_undersnow
+     integer                                        :: pass_mosslichen_photosyn
 
      call t_startf('fates_globals')
 
@@ -346,18 +352,36 @@ module CLMFatesInterfaceMod
 
         if(use_fates_nocomp)then
            pass_nocomp = 1
-	   else
+	      else
            pass_nocomp = 0
-	   end if
+	      end if
         call set_fates_ctrlparms('use_nocomp',ival=pass_nocomp)
 
         if(use_fates_sp)then
            pass_sp = 1
-              else
+        else
            pass_sp = 0
-              end if
+        end if
         call set_fates_ctrlparms('use_sp',ival=pass_sp)
 
+        if(use_mosslichen)then
+           pass_mosslichen = 1
+        else
+           pass_mosslichen = 0
+        end if
+        call set_fates_ctrlparms('use_mosslichen',ival=pass_mosslichen)
+        
+        if(use_mosslichen_rad == 4)then
+           pass_mosslichen_undersnow = 1
+        else if(use_mosslichen_rad == 5)then
+           pass_mosslichen_undersnow = 2
+        else
+           pass_mosslichen_undersnow = 0
+        end if
+        
+        call set_fates_ctrlparms('use_mosslichen_undersnow',ival=pass_mosslichen_undersnow)
+        
+        call set_fates_ctrlparms('use_mosslichen_photosyn',ival=use_mosslichen_photosyn)
 
         if(use_fates_ed_st3) then
            pass_ed_st3 = 1
@@ -848,21 +872,6 @@ module CLMFatesInterfaceMod
 
          end do
 
-         ! Here we use the same logic as the pft_areafrac initialization to get an array with values for each pft
-         ! in FATES. 
-         ! N.B. Fow now these are fixed values pending HLM updates. 
-         if(use_fates_sp)then
-           do ft = natpft_lb,natpft_ub !set of pfts in HLM
-               ! here we are mapping from P space in the HLM to FT space in the sp_input arrays.  
-               p = ft + col%patchi(c) ! for an FT of 1 we want to use 
-               this%fates(nc)%bc_in(s)%hlm_sp_tlai(ft) = canopystate_inst%tlai_patch(p)
-               this%fates(nc)%bc_in(s)%hlm_sp_tsai(ft) = canopystate_inst%tsai_patch(p)
-               this%fates(nc)%bc_in(s)%hlm_sp_htop(ft) = canopystate_inst%htop_patch(p)
-               if(canopystate_inst%htop_patch(p).lt.1.0e-20)then ! zero htop causes inifinite/nans. This is 
-                 this%fates(nc)%bc_in(s)%hlm_sp_htop(ft) = 0.01_r8
-               endif
-           end do ! p
-         end if ! SP
 
          if(use_fates_planthydro)then
             this%fates(nc)%bc_in(s)%hksat_sisl(1:nlevsoil)  = soilstate_inst%hksat_col(c,1:nlevsoil)
@@ -1002,8 +1011,10 @@ module CLMFatesInterfaceMod
      integer :: s       ! site index
      integer :: c       ! column index
      integer :: g       ! grid cell 
+     integer  :: ft                        ! plant functional type
 
      real(r8) :: areacheck
+
      call t_startf('fates_wrap_update_hlmfates_dyn')
 
      associate(                                &
@@ -1018,8 +1029,9 @@ module CLMFatesInterfaceMod
          dleaf_patch => canopystate_inst%dleaf_patch, &
          snow_depth => waterdiagnosticbulk_inst%snow_depth_col, &
          frac_sno_eff => waterdiagnosticbulk_inst%frac_sno_eff_col, &
-         frac_veg_nosno_alb => canopystate_inst%frac_veg_nosno_alb_patch)
-
+         frac_veg_nosno_alb => canopystate_inst%frac_veg_nosno_alb_patch, &
+         fwet      => waterdiagnosticbulk_inst%fwet_moss_col   & ! Input:  [real(r8) (:)   ]  fraction of canopy that is wet (0 to 1)   ! Hui, fwet can also be put in wrap_btran, but then it will be called late  (Line693,CanopyFluxesMod.F90); it can also be put dyanmics_driv, similar to tlai. The new updates of clm will be send to FATES at the same step?
+         )
 
        ! Process input boundary conditions to FATES
        ! --------------------------------------------------------------------------------
@@ -1027,8 +1039,31 @@ module CLMFatesInterfaceMod
           c = this%f2hmap(nc)%fcolumn(s)
           this%fates(nc)%bc_in(s)%snow_depth_si   = snow_depth(c)
           this%fates(nc)%bc_in(s)%frac_sno_eff_si = frac_sno_eff(c)
+          do ifp = 1,this%fates(nc)%sites(s)%youngest_patch%patchno
+             p = ifp+col%patchi(c)
+             this%fates(nc)%bc_in(s)%fwet_pa(ifp)        = fwet(c)     ! wet fraction for moss and lichen
+          end do
+      
+         ! Here we use the same logic as the pft_areafrac initialization to get an array with values for each pft
+         ! in FATES. 
+         ! N.B. Fow now these are fixed values pending HLM updates. 
+        if(use_fates_sp)then
+          do ft = natpft_lb,natpft_ub !set of pfts in HLM
+               ! here we are mapping from P space in the HLM to FT space in the sp_input arrays.  
+               p = ft + col%patchi(c) ! for an FT of 1 we want to use 
+               print *, "test_hui, ft=", ft
+               this%fates(nc)%bc_in(s)%hlm_sp_tlai(ft) = canopystate_inst%tlai_patch(p)
+               this%fates(nc)%bc_in(s)%hlm_sp_tsai(ft) = canopystate_inst%tsai_patch(p)
+               this%fates(nc)%bc_in(s)%hlm_sp_htop(ft) = canopystate_inst%htop_patch(p)
+               if(canopystate_inst%htop_patch(p).lt.1.0e-20)then ! zero htop causes inifinite/nans. This is 
+                 this%fates(nc)%bc_in(s)%hlm_sp_htop(ft) = 0.01_r8
+               endif
+           end do ! p
+           call satellite_phenology(this%fates(nc)%sites(s),this%fates(nc)%bc_in(s))        
+         end if ! SP
+
        end do
-       
+                   
        ! Canopy diagnostics for FATES
        call canopy_summarization(this%fates(nc)%nsites, &
             this%fates(nc)%sites,  &
@@ -1448,7 +1483,8 @@ module CLMFatesInterfaceMod
                ! ------------------------------------------------------------------------
                call this%fates_restart%update_3dpatch_radiation(this%fates(nc)%nsites, &
                                                                 this%fates(nc)%sites, &
-                                                                this%fates(nc)%bc_out)
+                                                                this%fates(nc)%bc_out, &
+                                                                this%fates(nc)%bc_in)
                     
                ! ------------------------------------------------------------------------
                ! Update history IO fields that depend on ecosystem dynamics
@@ -1599,7 +1635,7 @@ module CLMFatesInterfaceMod
 
    ! ======================================================================================
    
-   subroutine wrap_sunfrac(this,nc,atm2lnd_inst,canopystate_inst)
+   subroutine wrap_sunfrac(this,nc,atm2lnd_inst,canopystate_inst,surfalb_inst)
          
       ! ---------------------------------------------------------------------------------
       ! This interface function is a wrapper call on ED_SunShadeFracs. The only
@@ -1616,6 +1652,7 @@ module CLMFatesInterfaceMod
       
       ! direct and diffuse downwelling radiation (W/m2)
       type(atm2lnd_type),intent(in)        :: atm2lnd_inst
+      type(surfalb_type),intent(in)        :: surfalb_inst
       
       ! Input/Output Arguments to CLM
       type(canopystate_type),intent(inout) :: canopystate_inst
@@ -1637,6 +1674,8 @@ module CLMFatesInterfaceMod
 
       associate( forc_solad => atm2lnd_inst%forc_solad_grc, &
                  forc_solai => atm2lnd_inst%forc_solai_grc, &
+                 flx_absdv  =>    surfalb_inst%flx_absdv_col        , & ! Hui: Input:  [real(r8) (:,:) ] direct flux absorption factor (col,lyr): VIS [frc]
+                 flx_absiv  =>    surfalb_inst%flx_absiv_col        , & ! Hui: Input:  [real(r8) (:,:) ] diffuse flux absorption factor (col,lyr): VIS [frc]
                  fsun       => canopystate_inst%fsun_patch, &
                  laisun     => canopystate_inst%laisun_patch, &               
                  laisha     => canopystate_inst%laisha_patch )
@@ -1653,6 +1692,8 @@ module CLMFatesInterfaceMod
            do ifp = 1, this%fates(nc)%sites(s)%youngest_patch%patchno
               this%fates(nc)%bc_in(s)%solad_parb(ifp,:) = forc_solad(g,:)
               this%fates(nc)%bc_in(s)%solai_parb(ifp,:) = forc_solai(g,:)
+              this%fates(nc)%bc_in(s)%flx_absdv(ifp)  = flx_absdv(c,1)
+              this%fates(nc)%bc_in(s)%flx_absiv(ifp)  = flx_absiv(c,1)
            end do
         end do
 
@@ -1688,6 +1729,7 @@ module CLMFatesInterfaceMod
      call t_stopf('fates_wrapsunfrac')
 
    end subroutine wrap_sunfrac
+      
    
    ! ===================================================================================
 
@@ -1780,7 +1822,7 @@ module CLMFatesInterfaceMod
          btran       => energyflux_inst%btran_patch         , & ! Output: [real(r8) (:)   ]  transpiration wetness factor (0 to 1) 
          btran2       => energyflux_inst%btran2_patch       , & ! Output: [real(r8) (:)   ]  
          rresis      => energyflux_inst%rresis_patch        , & ! Output: [real(r8) (:,:) ]  root resistance by layer (0-1)  (nlevgrnd) 
-         rootr       => soilstate_inst%rootr_patch          & ! Output: [real(r8) (:,:) ]  Fraction of water uptake in each layer
+         rootr       => soilstate_inst%rootr_patch           & ! Output: [real(r8) (:,:) ]  Fraction of water uptake in each layer
          )
 
         ! -------------------------------------------------------------------------------
@@ -1823,7 +1865,7 @@ module CLMFatesInterfaceMod
               this%fates(nc)%bc_in(s)%eff_porosity_sl(:)  = -999._r8
               this%fates(nc)%bc_in(s)%watsat_sl(:)        = -999._r8
            end if
-
+           
         end do
 
         ! -------------------------------------------------------------------------------
@@ -1946,6 +1988,7 @@ module CLMFatesInterfaceMod
     associate(&
           t_soisno  => temperature_inst%t_soisno_col , &
           t_veg     => temperature_inst%t_veg_patch  , &
+          t_moss_col=> temperature_inst%t_moss_col  , &
           tgcm      => temperature_inst%thm_patch    , &
           forc_pbot => atm2lnd_inst%forc_pbot_downscaled_col, &
           rssun     => photosyns_inst%rssun_patch  , &
@@ -1961,7 +2004,7 @@ module CLMFatesInterfaceMod
 
          do j = 1,nlevsoil
             this%fates(nc)%bc_in(s)%t_soisno_sl(j)   = t_soisno(c,j)  ! soil temperature (Kelvin)
-        end do
+         end do
          this%fates(nc)%bc_in(s)%forc_pbot           = forc_pbot(c)   ! atmospheric pressure (Pa)
     
          do ifp = 1,this%fates(nc)%sites(s)%youngest_patch%patchno
@@ -1986,7 +2029,9 @@ module CLMFatesInterfaceMod
                this%fates(nc)%bc_in(s)%cair_pa(ifp)        = cair(p)        ! Atmospheric CO2 partial pressure (Pa)
                this%fates(nc)%bc_in(s)%rb_pa(ifp)          = rb(p)          ! boundary layer resistance (s/m)
                this%fates(nc)%bc_in(s)%t_veg_pa(ifp)       = t_veg(p)       ! vegetation temperature (Kelvin)     
-               this%fates(nc)%bc_in(s)%tgcm_pa(ifp)        = tgcm(p)        ! air temperature at agcm reference height (kelvin)
+               this%fates(nc)%bc_in(s)%t_moss_pa(ifp)      = t_moss_col(c)  ! moss temperature (Kelvin)     
+               this%fates(nc)%bc_in(s)%tgcm_pa(ifp)        = tgcm(p)        ! air temperature at agcm reference height (kelvin)                                        
+                            
             end if
          end do
       end do
@@ -2091,6 +2136,7 @@ module CLMFatesInterfaceMod
     
     ! locals
     integer                                    :: s,c,p,ifp,icp
+    integer                                    :: mosslichen = 0
 
     call t_startf('fates_wrapcanopyradiation')
 
@@ -2131,7 +2177,7 @@ module CLMFatesInterfaceMod
     call ED_Norman_Radiation(this%fates(nc)%nsites,  &
          this%fates(nc)%sites, &
          this%fates(nc)%bc_in,  &
-         this%fates(nc)%bc_out)
+         this%fates(nc)%bc_out,mosslichen)
     
     ! Pass FATES BC's back to HLM
     ! -----------------------------------------------------------------------------------
@@ -2162,6 +2208,97 @@ module CLMFatesInterfaceMod
   call t_stopf('fates_wrapcanopyradiation')
 
  end subroutine wrap_canopy_radiation
+ 
+ ! ======================================================================================
+ subroutine wrap_mosslichen_radiation(this, bounds_clump, nc, &
+         num_vegsol, filter_vegsol, coszen, surfalb_inst)
+
+    ! Arguments
+    class(hlm_fates_interface_type), intent(inout) :: this
+    type(bounds_type),  intent(in)             :: bounds_clump
+    ! filter for vegetated pfts with coszen>0
+    integer            , intent(in)            :: nc ! clump index
+    integer            , intent(in)            :: num_vegsol                 
+    integer            , intent(in)            :: filter_vegsol(num_vegsol)    
+    ! cosine solar zenith angle for next time step
+    real(r8)           , intent(in)            :: coszen( bounds_clump%begp: )        
+    type(surfalb_type) , intent(inout)         :: surfalb_inst 
+    
+    ! locals
+    integer                                    :: s,c,p,ifp,icp
+    integer                                    :: mosslichen = 1
+
+    call t_startf('fates_wrapmosslichenradiation')
+
+    associate(&
+         albgrd_col   =>    surfalb_inst%albsod_col         , & !in use soil albedo instead of ground albedo
+         albgri_col   =>    surfalb_inst%albsoi_col         , & !in use soil albedo instead of ground albedo
+         albd         =>    surfalb_inst%albd_patch         , & !out
+         albi         =>    surfalb_inst%albi_patch         , & !out
+         fabd         =>    surfalb_inst%fabd_patch         , & !out
+         fabi         =>    surfalb_inst%fabi_patch         , & !out
+         ftdd         =>    surfalb_inst%ftdd_patch         , & !out
+         ftid         =>    surfalb_inst%ftid_patch         , & !out
+         ftii         =>    surfalb_inst%ftii_patch)            !out
+
+    do s = 1, this%fates(nc)%nsites
+
+       c = this%f2hmap(nc)%fcolumn(s)
+
+         do ifp = 1,this%fates(nc)%sites(s)%youngest_patch%patchno
+           p = ifp+col%patchi(c)
+
+          if( any(filter_vegsol==p) )then
+    
+             this%fates(nc)%bc_in(s)%filter_vegzen_pa(ifp) = .true.
+             this%fates(nc)%bc_in(s)%coszen_pa(ifp)  = coszen(p)
+             this%fates(nc)%bc_in(s)%albgr_dir_rb(:) = albgrd_col(c,:)
+             this%fates(nc)%bc_in(s)%albgr_dif_rb(:) = albgri_col(c,:)
+
+          else
+             
+             this%fates(nc)%bc_in(s)%filter_vegzen_pa(ifp) = .false.
+
+          end if
+
+       end do
+    end do
+
+    call ED_Norman_Radiation(this%fates(nc)%nsites,  &
+         this%fates(nc)%sites, &
+         this%fates(nc)%bc_in,  &
+         this%fates(nc)%bc_out, mosslichen)
+    
+    ! Pass FATES BC's back to HLM
+    ! -----------------------------------------------------------------------------------
+    do icp = 1,num_vegsol
+       p = filter_vegsol(icp)
+       c = patch%column(p)
+       s = this%f2hmap(nc)%hsites(c)
+       ! do if structure here and only pass natveg columns
+       ifp = p-col%patchi(c)
+
+       if(.not.this%fates(nc)%bc_in(s)%filter_vegzen_pa(ifp) )then
+          write(iulog,*) 's,p,ifp',s,p,ifp
+          write(iulog,*) 'Not all patches on the natveg column were passed to canrad',patch%sp_pftorder_index(p)
+!          call endrun(msg=errMsg(sourcefile, __LINE__))
+       else
+          albd(p,:) = this%fates(nc)%bc_out(s)%albd_parb(ifp,:)
+          albi(p,:) = this%fates(nc)%bc_out(s)%albi_parb(ifp,:)
+          fabd(p,:) = this%fates(nc)%bc_out(s)%fabd_parb(ifp,:)
+          fabi(p,:) = this%fates(nc)%bc_out(s)%fabi_parb(ifp,:)
+          ftdd(p,:) = this%fates(nc)%bc_out(s)%ftdd_parb(ifp,:)
+          ftid(p,:) = this%fates(nc)%bc_out(s)%ftid_parb(ifp,:)
+          ftii(p,:) = this%fates(nc)%bc_out(s)%ftii_parb(ifp,:)
+       end if
+    end do
+    
+  end associate
+
+  call t_stopf('fates_wrapmosslichenradiation')
+
+end subroutine wrap_mosslichen_radiation
+
 
  ! ======================================================================================
 

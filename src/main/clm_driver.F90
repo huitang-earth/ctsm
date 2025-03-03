@@ -532,7 +532,7 @@ contains
             filter(nc)%num_soilp, filter(nc)%soilp, &
             filter(nc)%num_nolakep, filter(nc)%nolakep, &
             filter(nc)%num_nolakec, filter(nc)%nolakec, &
-            patch, col, canopystate_inst, atm2lnd_inst, water_inst)
+            patch, col, canopystate_inst, atm2lnd_inst, water_inst, soilstate_inst)
 
        call HandleNewSnow(bounds_clump, &
             filter(nc)%num_nolakec, filter(nc)%nolakec, &
@@ -568,7 +568,7 @@ contains
        ! over the patch index range defined by bounds_clump%begp:bounds_proc%endp
 
        if(use_fates) then
-          call clm_fates%wrap_sunfrac(nc,atm2lnd_inst, canopystate_inst)
+          call clm_fates%wrap_sunfrac(nc,atm2lnd_inst, canopystate_inst, surfalb_inst)
        else
           call CanopySunShadeFracs(filter(nc)%nourbanp,filter(nc)%num_nourbanp,     &
                                    atm2lnd_inst, surfalb_inst, canopystate_inst,    &
@@ -640,7 +640,7 @@ contains
 
        call BareGroundFluxes(bounds_clump,                                 &
             filter(nc)%num_noexposedvegp, filter(nc)%noexposedvegp,          &
-            atm2lnd_inst, soilstate_inst,                &
+            clm_fates, nc, atm2lnd_inst, canopystate_inst, soilstate_inst,                &
             frictionvel_inst, ch4_inst, energyflux_inst, temperature_inst, &
             water_inst%waterfluxbulk_inst, water_inst%waterstatebulk_inst, &
             water_inst%waterdiagnosticbulk_inst, water_inst%wateratm2lndbulk_inst, &

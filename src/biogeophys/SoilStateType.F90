@@ -224,12 +224,12 @@ contains
          avgflag='A', long_name='soil conductance in each soil layer', &
          ptr_patch=this%soil_conductance_patch, default='inactive')
 
-    if (use_cn) then
+!    if (use_cn) then
        this%bsw_col(begc:endc,:) = spval 
        call hist_addfld2d (fname='bsw', units='unitless', type2d='levgrnd', &
             avgflag='A', long_name='clap and hornberger B', &
             ptr_col=this%bsw_col, default='inactive')
-    end if
+!    end if
 
     if (use_dynroot) then
        this%rootfr_patch(begp:endp,:) = spval
@@ -270,16 +270,32 @@ contains
             ptr_col=this%soilpsi_col, default='inactive')
     end if
 
-    this%thk_col(begc:endc,-nlevsno+1:0) = spval
-    data2dptr => this%thk_col(:,-nlevsno+1:0)
-    call hist_addfld2d (fname='SNO_TK', units='W/m-K', type2d='levsno', &
-         avgflag='A', long_name='Thermal conductivity', &
-         ptr_col=data2dptr, no_snow_behavior=no_snow_normal, default='inactive')
+!    this%thk_col(begc:endc,-nlevsno+1:0) = spval
+!    data2dptr => this%thk_col(:,-nlevsno+1:0)
+!    call hist_addfld2d (fname='SNO_TK', units='W/m-K', type2d='levsno', &
+!         avgflag='A', long_name='Thermal conductivity', &
+!         ptr_col=data2dptr, no_snow_behavior=no_snow_normal, default='inactive')
 
-    call hist_addfld2d (fname='SNO_TK_ICE', units='W/m-K', type2d='levsno', &
-         avgflag='A', long_name='Thermal conductivity (ice landunits only)', &
-         ptr_col=data2dptr, no_snow_behavior=no_snow_normal, &
-         l2g_scale_type='ice', default='inactive')
+!    call hist_addfld2d (fname='SNO_TK_ICE', units='W/m-K', type2d='levsno', &
+!         avgflag='A', long_name='Thermal conductivity (ice landunits only)', &
+!         ptr_col=data2dptr, no_snow_behavior=no_snow_normal, &
+!         l2g_scale_type='ice', default='inactive')
+    
+    this%thk_col(begc:endc,1:) = spval
+    data2dptr => this%thk_col(:,1:)     
+    call hist_addfld2d (fname='THK', units='W/m-K', type2d='levgrnd', &
+         avgflag='A', long_name='Thermal conductivity (soil)', &
+         ptr_col=data2dptr, default='inactive')
+         
+    this%tkmg_col(begc:endc,:) = spval   
+    call hist_addfld2d (fname='TKMG', units='W/m-K', type2d='levgrnd', &
+         avgflag='A', long_name='thermal conductivity, moist soil minerals+organic matter', &
+         ptr_col=this%tkmg_col, default='inactive')
+
+    this%tkdry_col(begc:endc,:) = spval     
+    call hist_addfld2d (fname='TKDRY', units='W/m-K', type2d='levgrnd', &
+         avgflag='A', long_name='thermal conductivity, dry soil (W/m/Kelvin)', &
+         ptr_col=this%tkdry_col, default='inactive')
 
     this%hk_l_col(begc:endc,:) = spval
     call hist_addfld2d (fname='HK',  units='mm/s', type2d='levgrnd',  &
@@ -296,19 +312,19 @@ contains
          avgflag='A', long_name='urban factor limiting ground evap', &
          ptr_col=this%soilalpha_u_col, set_nourb=spval, default='inactive')
 
-    if (use_cn) then
+ !   if (use_cn) then
        this%watsat_col(begc:endc,:) = spval 
        call hist_addfld2d (fname='watsat', units='m^3/m^3', type2d='levgrnd', &
             avgflag='A', long_name='water saturated', &
             ptr_col=this%watsat_col, default='inactive')
-    end if
+ !   end if
 
-    if (use_cn) then
+ !   if (use_cn) then
        this%eff_porosity_col(begc:endc,:) = spval
        call hist_addfld2d (fname='EFF_POROSITY', units='proportion', type2d='levgrnd', &
             avgflag='A', long_name='effective porosity = porosity - vol_ice', &
             ptr_col=this%eff_porosity_col, default='inactive')
-    end if
+ !   end if
 
     if (use_cn) then
        this%watfc_col(begc:endc,:) = spval 
