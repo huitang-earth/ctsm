@@ -62,6 +62,7 @@ module CLMFatesInterfaceMod
    use clm_varctl        , only : use_fates_sp
    use clm_varctl        , only : fates_inventory_ctrl_filename
    use clm_varctl        , only : use_nitrif_denitrif
+   use clm_varctl        , only : use_mosslichen, use_mosslichen_rad, use_mosslichen_photosyn
    use clm_varcon        , only : tfrz
    use clm_varcon        , only : spval 
    use clm_varcon        , only : denice
@@ -273,6 +274,9 @@ module CLMFatesInterfaceMod
      integer                                        :: pass_biogeog 
      integer                                        :: pass_nocomp
      integer                                        :: pass_sp
+     integer                                        :: pass_mosslichen
+     integer                                        :: pass_mosslichen_undersnow
+     integer                                        :: pass_mosslichen_photosyn
 
      call t_startf('fates_globals')
 
@@ -348,18 +352,36 @@ module CLMFatesInterfaceMod
 
         if(use_fates_nocomp)then
            pass_nocomp = 1
-	   else
+	      else
            pass_nocomp = 0
-	   end if
+	      end if
         call set_fates_ctrlparms('use_nocomp',ival=pass_nocomp)
 
         if(use_fates_sp)then
            pass_sp = 1
-              else
+        else
            pass_sp = 0
-              end if
+        end if
         call set_fates_ctrlparms('use_sp',ival=pass_sp)
 
+        if(use_mosslichen)then
+           pass_mosslichen = 1
+        else
+           pass_mosslichen = 0
+        end if
+        call set_fates_ctrlparms('use_mosslichen',ival=pass_mosslichen)
+        
+        if(use_mosslichen_rad == 4)then
+           pass_mosslichen_undersnow = 1
+        else if(use_mosslichen_rad == 5)then
+           pass_mosslichen_undersnow = 2
+        else
+           pass_mosslichen_undersnow = 0
+        end if
+        
+        call set_fates_ctrlparms('use_mosslichen_undersnow',ival=pass_mosslichen_undersnow)
+        
+        call set_fates_ctrlparms('use_mosslichen_photosyn',ival=use_mosslichen_photosyn)
 
         if(use_fates_ed_st3) then
            pass_ed_st3 = 1
@@ -1008,7 +1030,7 @@ module CLMFatesInterfaceMod
          snow_depth => waterdiagnosticbulk_inst%snow_depth_col, &
          frac_sno_eff => waterdiagnosticbulk_inst%frac_sno_eff_col, &
          frac_veg_nosno_alb => canopystate_inst%frac_veg_nosno_alb_patch, &
-         fwet      => waterdiagnosticbulk_inst%fwet_patch   & ! Input:  [real(r8) (:)   ]  fraction of canopy that is wet (0 to 1)   ! Hui, fwet can also be put in wrap_btran, but then it will be called late  (Line693,CanopyFluxesMod.F90); it can also be put dyanmics_driv, similar to tlai. The new updates of clm will be send to FATES at the same step?
+         fwet      => waterdiagnosticbulk_inst%fwet_moss_col   & ! Input:  [real(r8) (:)   ]  fraction of canopy that is wet (0 to 1)   ! Hui, fwet can also be put in wrap_btran, but then it will be called late  (Line693,CanopyFluxesMod.F90); it can also be put dyanmics_driv, similar to tlai. The new updates of clm will be send to FATES at the same step?
          )
 
        ! Process input boundary conditions to FATES
@@ -1019,7 +1041,7 @@ module CLMFatesInterfaceMod
           this%fates(nc)%bc_in(s)%frac_sno_eff_si = frac_sno_eff(c)
           do ifp = 1,this%fates(nc)%sites(s)%youngest_patch%patchno
              p = ifp+col%patchi(c)
-             this%fates(nc)%bc_in(s)%fwet_pa(ifp)        = fwet(p)     ! wet fraction for moss and lichen
+             this%fates(nc)%bc_in(s)%fwet_pa(ifp)        = fwet(c)     ! wet fraction for moss and lichen
           end do
       
          ! Here we use the same logic as the pft_areafrac initialization to get an array with values for each pft
@@ -1966,6 +1988,7 @@ module CLMFatesInterfaceMod
     associate(&
           t_soisno  => temperature_inst%t_soisno_col , &
           t_veg     => temperature_inst%t_veg_patch  , &
+          t_moss_col=> temperature_inst%t_moss_col  , &
           tgcm      => temperature_inst%thm_patch    , &
           forc_pbot => atm2lnd_inst%forc_pbot_downscaled_col, &
           rssun     => photosyns_inst%rssun_patch  , &
@@ -1981,7 +2004,7 @@ module CLMFatesInterfaceMod
 
          do j = 1,nlevsoil
             this%fates(nc)%bc_in(s)%t_soisno_sl(j)   = t_soisno(c,j)  ! soil temperature (Kelvin)
-        end do
+         end do
          this%fates(nc)%bc_in(s)%forc_pbot           = forc_pbot(c)   ! atmospheric pressure (Pa)
     
          do ifp = 1,this%fates(nc)%sites(s)%youngest_patch%patchno
@@ -2006,6 +2029,7 @@ module CLMFatesInterfaceMod
                this%fates(nc)%bc_in(s)%cair_pa(ifp)        = cair(p)        ! Atmospheric CO2 partial pressure (Pa)
                this%fates(nc)%bc_in(s)%rb_pa(ifp)          = rb(p)          ! boundary layer resistance (s/m)
                this%fates(nc)%bc_in(s)%t_veg_pa(ifp)       = t_veg(p)       ! vegetation temperature (Kelvin)     
+               this%fates(nc)%bc_in(s)%t_moss_pa(ifp)      = t_moss_col(c)  ! moss temperature (Kelvin)     
                this%fates(nc)%bc_in(s)%tgcm_pa(ifp)        = tgcm(p)        ! air temperature at agcm reference height (kelvin)                                        
                             
             end if

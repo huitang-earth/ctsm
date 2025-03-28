@@ -1001,10 +1001,10 @@ lnd/clm2/surfdata_map/BOR2/surfdata_BOR2_simyr2000.nc</fsurdat>
 lnd/clm2/surfdata_map/BOR3/surfdata_BOR3_simyr2000.nc</fsurdat>
 <fsurdat hgrid="1x1_BOR4"    sim_year="2000" use_crop=".false." irrigate=".true.">
 lnd/clm2/surfdata_map/BOR4/surfdata_BOR4_simyr2000.nc</fsurdat>
-<fsurdat hgrid="1x1_LYG"    sim_year="2000" use_crop=".false." irrigate=".true.">
-lnd/clm2/surfdata_map/LYG/surfdata_LYG_simyr2000.nc</fsurdat>
-<fsurdat hgrid="1x1_BUO"    sim_year="2000" use_crop=".false." irrigate=".true.">
-lnd/clm2/surfdata_map/BUO/surfdata_BUO_simyr2000.nc</fsurdat>
+<fsurdat hgrid="1x1_alaska"    sim_year="2000" use_crop=".false." irrigate=".true.">
+lnd/clm2/surfdata_map/alaska/surfdata_1x1_alaska_hist_16pfts_Irrig_CMIP6_simyr2005_c221002.nc</fsurdat>
+<fsurdat hgrid="1x1_siberia"    sim_year="2000" use_crop=".false." irrigate=".true.">
+lnd/clm2/surfdata_map/siberia/surfdata_1x1_siberia_hist_16pfts_Irrig_CMIP6_simyr2005_c221002.nc</fsurdat>
 <fsurdat hgrid="1x1_HAV"    sim_year="2000" use_crop=".false." irrigate=".true.">
 lnd/clm2/surfdata_map/HAV/surfdata_HAV_simyr2000.nc</fsurdat>
 <fsurdat hgrid="1x1_SKO"    sim_year="2000" use_crop=".false." irrigate=".true.">
@@ -1416,8 +1416,8 @@ lnd/clm2/surfdata_map/release-clm5.0.30/surfdata_ne0np4.CONUS.ne30x8_hist_78pfts
 <ndepmapalgo use_cn=".true."   hgrid="1x1_BOR2"            >nn</ndepmapalgo>
 <ndepmapalgo use_cn=".true."   hgrid="1x1_BOR3"            >nn</ndepmapalgo>
 <ndepmapalgo use_cn=".true."   hgrid="1x1_BOR4"            >nn</ndepmapalgo>
-<ndepmapalgo use_cn=".true."   hgrid="1x1_LYG"             >nn</ndepmapalgo>
-<ndepmapalgo use_cn=".true."   hgrid="1x1_BUO"             >nn</ndepmapalgo>
+<ndepmapalgo use_cn=".true."   hgrid="1x1_alaska"             >nn</ndepmapalgo>
+<ndepmapalgo use_cn=".true."   hgrid="1x1_siberia"             >nn</ndepmapalgo>
 <ndepmapalgo use_cn=".true."   hgrid="1x1_HAV"             >nn</ndepmapalgo>
 <ndepmapalgo use_cn=".true."   hgrid="1x1_SKO"             >nn</ndepmapalgo>
 <ndepmapalgo use_cn=".true."   hgrid="1x1_VIKE"            >nn</ndepmapalgo>
@@ -1484,8 +1484,8 @@ lnd/clm2/surfdata_map/release-clm5.0.30/surfdata_ne0np4.CONUS.ne30x8_hist_78pfts
 <lai_mapalgo  hgrid="1x1_BOR2"            >nn</lai_mapalgo>
 <lai_mapalgo  hgrid="1x1_BOR3"            >nn</lai_mapalgo>
 <lai_mapalgo  hgrid="1x1_BOR4"            >nn</lai_mapalgo>
-<lai_mapalgo  hgrid="1x1_LYG"            >nn</lai_mapalgo>
-<lai_mapalgo  hgrid="1x1_BUO"            >nn</lai_mapalgo>
+<lai_mapalgo  hgrid="1x1_alaska"            >nn</lai_mapalgo>
+<lai_mapalgo  hgrid="1x1_siberia"            >nn</lai_mapalgo>
 <lai_mapalgo  hgrid="1x1_HAV"            >nn</lai_mapalgo>
 <lai_mapalgo  hgrid="1x1_SKO"            >nn</lai_mapalgo>
 <lai_mapalgo  hgrid="1x1_VIKE"            >nn</lai_mapalgo>
@@ -1524,8 +1524,8 @@ lnd/clm2/surfdata_map/release-clm5.0.30/surfdata_ne0np4.CONUS.ne30x8_hist_78pfts
 <stream_fldfilename_lightng use_fates=".true." hgrid="1x1_BOR2" >atm/datm7/NASA_LIS/BOR2/clmforc.Li_2016_climo1995-2013.360x720.lnfm_Total_c160825_BOR2.nc</stream_fldfilename_lightng>
 <stream_fldfilename_lightng use_fates=".true." hgrid="1x1_BOR3" >atm/datm7/NASA_LIS/BOR3/clmforc.Li_2016_climo1995-2013.360x720.lnfm_Total_c160825_BOR3.nc</stream_fldfilename_lightng>
 <stream_fldfilename_lightng use_fates=".true." hgrid="1x1_BOR4" >atm/datm7/NASA_LIS/BOR4/clmforc.Li_2016_climo1995-2013.360x720.lnfm_Total_c160825_BOR4.nc</stream_fldfilename_lightng>
-<stream_fldfilename_lightng use_fates=".true." hgrid="1x1_LYG" >atm/datm7/NASA_LIS/LYG/clmforc.Li_2016_climo1995-2013.360x720.lnfm_Total_c160825_LYG.nc</stream_fldfilename_lightng>
-<stream_fldfilename_lightng use_fates=".true." hgrid="1x1_BUO" >atm/datm7/NASA_LIS/BUO/clmforc.Li_2016_climo1995-2013.360x720.lnfm_Total_c160825_BUO.nc</stream_fldfilename_lightng>
+<stream_fldfilename_lightng use_fates=".true." hgrid="1x1_alaska" >atm/datm7/NASA_LIS/clmforc.Li_2016_climo1995-2013.360x720.lnfm_Total_c160825_alaska.nc</stream_fldfilename_lightng>
+<stream_fldfilename_lightng use_fates=".true." hgrid="1x1_siberia" >atm/datm7/NASA_LIS/clmforc.Li_2016_climo1995-2013.360x720.lnfm_Total_c160825_siberia.nc</stream_fldfilename_lightng>
 <stream_fldfilename_lightng use_fates=".true." hgrid="1x1_HAV" >atm/datm7/NASA_LIS/HAV/clmforc.Li_2016_climo1995-2013.360x720.lnfm_Total_c160825_HAV.nc</stream_fldfilename_lightng>
 <stream_fldfilename_lightng use_fates=".true." hgrid="1x1_SKO" >atm/datm7/NASA_LIS/SKO/clmforc.Li_2016_climo1995-2013.360x720.lnfm_Total_c160825_SKO.nc</stream_fldfilename_lightng>    
 <stream_fldfilename_lightng use_fates=".true." hgrid="1x1_VIKE" >atm/datm7/NASA_LIS/VIKE/clmforc.Li_2016_climo1995-2013.360x720.lnfm_Total_c160825_VIKE.nc</stream_fldfilename_lightng>
@@ -1557,8 +1557,8 @@ lnd/clm2/surfdata_map/release-clm5.0.30/surfdata_ne0np4.CONUS.ne30x8_hist_78pfts
 <lightngmapalgo use_cn=".true."   hgrid="1x1_BOR2"            >nn</lightngmapalgo>
 <lightngmapalgo use_cn=".true."   hgrid="1x1_BOR3"            >nn</lightngmapalgo>
 <lightngmapalgo use_cn=".true."   hgrid="1x1_BOR4"            >nn</lightngmapalgo>
-<lightngmapalgo use_cn=".true."   hgrid="1x1_LYG"             >nn</lightngmapalgo>
-<lightngmapalgo use_cn=".true."   hgrid="1x1_BUO"             >nn</lightngmapalgo>
+<lightngmapalgo use_cn=".true."   hgrid="1x1_alaska"             >nn</lightngmapalgo>
+<lightngmapalgo use_cn=".true."   hgrid="1x1_siberia"             >nn</lightngmapalgo>
 <lightngmapalgo use_cn=".true."   hgrid="1x1_HAV"             >nn</lightngmapalgo>
 <lightngmapalgo use_cn=".true."   hgrid="1x1_SKO"             >nn</lightngmapalgo>
 <lightngmapalgo use_cn=".true."   hgrid="1x1_VIKE"            >nn</lightngmapalgo>
@@ -1578,8 +1578,8 @@ lnd/clm2/surfdata_map/release-clm5.0.30/surfdata_ne0np4.CONUS.ne30x8_hist_78pfts
 <lightngmapalgo use_fates=".true."   hgrid="1x1_BOR2"            >nn</lightngmapalgo>
 <lightngmapalgo use_fates=".true."   hgrid="1x1_BOR3"            >nn</lightngmapalgo>
 <lightngmapalgo use_fates=".true."   hgrid="1x1_BOR4"            >nn</lightngmapalgo>
-<lightngmapalgo use_fates=".true."   hgrid="1x1_LYG"             >nn</lightngmapalgo>
-<lightngmapalgo use_fates=".true."   hgrid="1x1_BUO"             >nn</lightngmapalgo>
+<lightngmapalgo use_fates=".true."   hgrid="1x1_alaska"             >nn</lightngmapalgo>
+<lightngmapalgo use_fates=".true."   hgrid="1x1_siberia"             >nn</lightngmapalgo>
 <lightngmapalgo use_fates=".true."   hgrid="1x1_HAV"             >nn</lightngmapalgo>
 <lightngmapalgo use_fates=".true."   hgrid="1x1_SKO"             >nn</lightngmapalgo>
 <lightngmapalgo use_fates=".true."   hgrid="1x1_VIKE"            >nn</lightngmapalgo>
@@ -1663,8 +1663,8 @@ lnd/clm2/surfdata_map/release-clm5.0.30/surfdata_ne0np4.CONUS.ne30x8_hist_78pfts
 <stream_fldfilename_popdens use_fates=".true." hgrid="1x1_BOR2" >lnd/clm2/firedata/BOR2/clmforc.Li_2017_HYDEv3.2_CMIP6_hdm_0.5x0.5_AVHRR_simyr1850-2016_c180202_BOR2.nc</stream_fldfilename_popdens>
 <stream_fldfilename_popdens use_fates=".true." hgrid="1x1_BOR3" >lnd/clm2/firedata/BOR3/clmforc.Li_2017_HYDEv3.2_CMIP6_hdm_0.5x0.5_AVHRR_simyr1850-2016_c180202_BOR3.nc</stream_fldfilename_popdens>
 <stream_fldfilename_popdens use_fates=".true." hgrid="1x1_BOR4" >lnd/clm2/firedata/BOR4/clmforc.Li_2017_HYDEv3.2_CMIP6_hdm_0.5x0.5_AVHRR_simyr1850-2016_c180202_BOR4.nc</stream_fldfilename_popdens>
-<stream_fldfilename_popdens use_fates=".true." hgrid="1x1_LYG" >lnd/clm2/firedata/LYG/clmforc.Li_2017_HYDEv3.2_CMIP6_hdm_0.5x0.5_AVHRR_simyr1850-2016_c180202_LYG.nc</stream_fldfilename_popdens>
-<stream_fldfilename_popdens use_fates=".true." hgrid="1x1_BUO" >lnd/clm2/firedata/BUO/clmforc.Li_2017_HYDEv3.2_CMIP6_hdm_0.5x0.5_AVHRR_simyr1850-2016_c180202_BUO.nc</stream_fldfilename_popdens>
+<stream_fldfilename_popdens use_fates=".true." hgrid="1x1_alaska" >lnd/clm2/firedata/clmforc.Li_2017_HYDEv3.2_CMIP6_hdm_0.5x0.5_AVHRR_simyr1850-2016_c180202_alaska.nc</stream_fldfilename_popdens>
+<stream_fldfilename_popdens use_fates=".true." hgrid="1x1_siberia" >lnd/clm2/firedata/clmforc.Li_2017_HYDEv3.2_CMIP6_hdm_0.5x0.5_AVHRR_simyr1850-2016_c180202_siberia.nc</stream_fldfilename_popdens>
 <stream_fldfilename_popdens use_fates=".true." hgrid="1x1_HAV" >lnd/clm2/firedata/HAV/clmforc.Li_2017_HYDEv3.2_CMIP6_hdm_0.5x0.5_AVHRR_simyr1850-2016_c180202_HAV.nc</stream_fldfilename_popdens>
 <stream_fldfilename_popdens use_fates=".true." hgrid="1x1_SKO" >lnd/clm2/firedata/SKO/clmforc.Li_2017_HYDEv3.2_CMIP6_hdm_0.5x0.5_AVHRR_simyr1850-2016_c180202_SKO.nc</stream_fldfilename_popdens>    
 <stream_fldfilename_popdens use_fates=".true." hgrid="1x1_VIKE" >lnd/clm2/firedata/VIKE/clmforc.Li_2017_HYDEv3.2_CMIP6_hdm_0.5x0.5_AVHRR_simyr1850-2016_c180202_VIKE.nc</stream_fldfilename_popdens>
@@ -1711,8 +1711,8 @@ lnd/clm2/surfdata_map/release-clm5.0.30/surfdata_ne0np4.CONUS.ne30x8_hist_78pfts
 <popdensmapalgo use_cn=".true."   hgrid="1x1_BOR2"            >nn</popdensmapalgo>
 <popdensmapalgo use_cn=".true."   hgrid="1x1_BOR3"            >nn</popdensmapalgo>
 <popdensmapalgo use_cn=".true."   hgrid="1x1_BOR4"            >nn</popdensmapalgo>
-<popdensmapalgo use_cn=".true."   hgrid="1x1_LYG"             >nn</popdensmapalgo>
-<popdensmapalgo use_cn=".true."   hgrid="1x1_BUO"             >nn</popdensmapalgo>
+<popdensmapalgo use_cn=".true."   hgrid="1x1_alaska"             >nn</popdensmapalgo>
+<popdensmapalgo use_cn=".true."   hgrid="1x1_siberia"             >nn</popdensmapalgo>
 <popdensmapalgo use_cn=".true."   hgrid="1x1_HAV"             >nn</popdensmapalgo>
 <popdensmapalgo use_cn=".true."   hgrid="1x1_SKO"             >nn</popdensmapalgo>
 <popdensmapalgo use_cn=".true."   hgrid="1x1_VIKE"            >nn</popdensmapalgo>
@@ -1741,8 +1741,8 @@ lnd/clm2/surfdata_map/release-clm5.0.30/surfdata_ne0np4.CONUS.ne30x8_hist_78pfts
 <popdensmapalgo use_fates=".true."   hgrid="1x1_BOR2"            >nn</popdensmapalgo>
 <popdensmapalgo use_fates=".true."   hgrid="1x1_BOR3"            >nn</popdensmapalgo>
 <popdensmapalgo use_fates=".true."   hgrid="1x1_BOR4"            >nn</popdensmapalgo>
-<popdensmapalgo use_fates=".true."   hgrid="1x1_LYG"             >nn</popdensmapalgo>
-<popdensmapalgo use_fates=".true."   hgrid="1x1_BUO"             >nn</popdensmapalgo>
+<popdensmapalgo use_fates=".true."   hgrid="1x1_alaska"             >nn</popdensmapalgo>
+<popdensmapalgo use_fates=".true."   hgrid="1x1_siberia"             >nn</popdensmapalgo>
 <popdensmapalgo use_fates=".true."   hgrid="1x1_HAV"             >nn</popdensmapalgo>
 <popdensmapalgo use_fates=".true."   hgrid="1x1_SKO"             >nn</popdensmapalgo>
 <popdensmapalgo use_fates=".true."   hgrid="1x1_VIKE"            >nn</popdensmapalgo>
@@ -1795,8 +1795,8 @@ lnd/clm2/surfdata_map/release-clm5.0.30/surfdata_ne0np4.CONUS.ne30x8_hist_78pfts
 <stream_fldfilename_urbantv phys="clm5_0" hgrid="1x1_BOR2" >lnd/clm2/urbandata/BOR2/CLM50_tbuildmax_Oleson_2016_0.9x1.25_simyr1849-2106_c160923_BOR2.nc</stream_fldfilename_urbantv>
 <stream_fldfilename_urbantv phys="clm5_0" hgrid="1x1_BOR3" >lnd/clm2/urbandata/BOR3/CLM50_tbuildmax_Oleson_2016_0.9x1.25_simyr1849-2106_c160923_BOR3.nc</stream_fldfilename_urbantv>
 <stream_fldfilename_urbantv phys="clm5_0" hgrid="1x1_BOR4" >lnd/clm2/urbandata/BOR4/CLM50_tbuildmax_Oleson_2016_0.9x1.25_simyr1849-2106_c160923_BOR4.nc</stream_fldfilename_urbantv>
-<stream_fldfilename_urbantv phys="clm5_0" hgrid="1x1_LYG" >lnd/clm2/urbandata/LYG/CLM50_tbuildmax_Oleson_2016_0.9x1.25_simyr1849-2106_c160923_LYG.nc</stream_fldfilename_urbantv>
-<stream_fldfilename_urbantv phys="clm5_0" hgrid="1x1_BUO" >lnd/clm2/urbandata/BUO/CLM50_tbuildmax_Oleson_2016_0.9x1.25_simyr1849-2106_c160923_BUO.nc</stream_fldfilename_urbantv>
+<stream_fldfilename_urbantv phys="clm5_0" hgrid="1x1_alaska" >lnd/clm2/urbandata/CLM50_tbuildmax_Oleson_2016_0.9x1.25_simyr1849-2106_c160923_alaska.nc</stream_fldfilename_urbantv>
+<stream_fldfilename_urbantv phys="clm5_0" hgrid="1x1_siberia" >lnd/clm2/urbandata/CLM50_tbuildmax_Oleson_2016_0.9x1.25_simyr1849-2106_c160923_siberia.nc</stream_fldfilename_urbantv>
 <stream_fldfilename_urbantv phys="clm5_0" hgrid="1x1_HAV" >lnd/clm2/urbandata/HAV/CLM50_tbuildmax_Oleson_2016_0.9x1.25_simyr1849-2106_c160923_HAV.nc</stream_fldfilename_urbantv>
 <stream_fldfilename_urbantv phys="clm5_0" hgrid="1x1_SKO" >lnd/clm2/urbandata/SKO/CLM50_tbuildmax_Oleson_2016_0.9x1.25_simyr1849-2106_c160923_SKO.nc</stream_fldfilename_urbantv>    
 <stream_fldfilename_urbantv phys="clm5_0" hgrid="1x1_VIKE" >lnd/clm2/urbandata/VIKE/CLM50_tbuildmax_Oleson_2016_0.9x1.25_simyr1849-2106_c160923_VIKE.nc</stream_fldfilename_urbantv>

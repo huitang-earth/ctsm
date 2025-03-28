@@ -59,31 +59,80 @@ contains
     type(soilstate_type), intent(in) :: soilstate_inst
     real(r8), intent(out)            :: hk       !hydraulic conductivity [mm/s]
     real(r8), optional, intent(out)  :: dhkds    !d[hk]/ds   [mm/s]
+    
+                                                  ! l is the pore-connectivity parameter (−)
+    
     !
     ! !LOCAL VARIABLES:
     
     character(len=*), parameter :: subname = 'soil_hk'
+    
+    ! !LOCAL VARIABLES:
+    real(8) :: n1, m1, alpha_van ! (-), pore-size-distribution parameter for Van Genuchten 1.07
+    
     !-----------------------------------------------------------------------
     
     associate(& 
          hksat             =>    soilstate_inst%hksat_col(c,j)          , & ! Input:  [real(r8) (:,:) ]  hydraulic conductivity at saturation (mm H2O /s)
-         bsw               =>    soilstate_inst%bsw_col(c,j)              & ! Input:  [real(r8) (:,:) ]  Clapp and Hornberger "b"                        
+  !       bsw               =>    soilstate_inst%bsw_col(c,j)              & ! Input:  [real(r8) (:,:) ]  Clapp and Hornberger "b"                        
          )
 
+    n1 = n_van 
+    m1 = 1.0/n1   ! (1-1.0/n1) ?
+    !alpha_van = alpha_van
+    
+    l=0.5 
+    
 
-    !compute hydraulic conductivity
-    hk=imped*hksat*s**(2._r8*bsw+3._r8)
+    !watsat = spafhy_para%watsat  
+    !watres = spafhy_para%watres     
+    !vol_ice = 0.0  
+    !eff_porosity = max(0.01, watsat - vol_ice)
+    !satfrac = (vol_liq - watres) / (eff_porosity-watres)
 
-    !compute the derivative
-    if(present(dhkds))then
-       dhkds=(2._r8*bsw+3._r8)*hk/s
-    endif
+    ! hydraulic conductivity (vanGenuchten - Mualem)
+    hk = hksat * s**l  * (1.0 - (1.0 - s**(1/m1))**m1)**2.0    ! [m s-1]
+  
 
     end associate 
 
   end subroutine soil_hk
+  
+  
+  
+  SUBROUTINE soil_water_retention_curve(vol_liq, spafhy_para, smp)
+  ! Converts vol. water content to soil water potential (in MPa)
+  ! Add restriction that smp can't drop too low?
 
-  !-----------------------------------------------------------------------
+    real(8), intent(in) :: vol_liq        ! v/v, volumetric of liq in soil bucket
+    type(spafhy_para_type), intent(in)    :: spafhy_para ! parameters
+    real(8), intent(out):: smp            ! soil suction, negative, MPa
+
+  ! !LOCAL VARIABLES:
+
+    real(8) :: vol_ice     ! v/v, volumetric ice in soil bucket 
+    real(8) :: satfrac     ! parameter for Van Genuchten
+    real(8) :: n1, m1, alpha_van, watsat, watres 
+    real(8) :: eff_porosity! v/v, volume of ice
+        
+    n1 = spafhy_para%n_van 
+    m1 = 1.0/n1  
+    alpha_van = spafhy_para%alpha_van 
+    watsat = spafhy_para%watsat  
+    watres = spafhy_para%watres
+    
+    vol_ice = 0.0  
+    eff_porosity = max(0.01, watsat - vol_ice)
+    
+    satfrac = (vol_liq-watres)/(eff_porosity-watres)
+    smp = -(1.0/alpha_van)*(satfrac**(1.0/(m1-1.0)) - 1.0 )**m1 !kPa
+    smp = smp * 0.001 !MPa
+
+  END SUBROUTINE soil_water_retention_curve
+  
+  ! Convert matric potential to water head (m)
+  ! hp = h = Ψp / ρwg
+  
   subroutine soil_suction(this, c, j, s, soilstate_inst, smp, dsmpds)
     !j, 
     ! !DESCRIPTION:
@@ -104,20 +153,27 @@ contains
     ! !LOCAL VARIABLES:
     
     character(len=*), parameter :: subname = 'soil_suction'
+    real(8) :: n1, m1, alpha_van ! (-), pore-size-distribution parameter for Van Genuchten 1.07
+    
+    
     !-----------------------------------------------------------------------
     
     associate(& 
-         bsw               =>    soilstate_inst%bsw_col(c,j)            , & ! Input:  [real(r8) (:,:) ]  Clapp and Hornberger "b"                       
+   !      bsw               =>    soilstate_inst%bsw_col(c,j)            , & ! Input:  [real(r8) (:,:) ]  Clapp and Hornberger "b"                       
          sucsat            =>    soilstate_inst%sucsat_col(c,j)           & ! Input:  [real(r8) (:,:) ]  minimum soil suction (mm)                       
          )
 
+    n1 = n_van 
+    m1 = 1.0/n1 
+
     !compute soil suction potential, negative
-    smp = -sucsat*s**(-bsw)
+    smp = -(1.0/alpha_van)*(s**(1.0/(m1-1.0)) - 1.0 )**m1 !kPa
+    smp = smp * 0.001 !MPa
 
     !compute derivative
-    if(present(dsmpds))then
-       dsmpds=-bsw*smp/s
-    endif
+    !if(present(dsmpds))then
+    !   dsmpds=-bsw*smp/s
+    !endif
 
     end associate 
 

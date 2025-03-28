@@ -532,7 +532,7 @@ contains
             filter(nc)%num_soilp, filter(nc)%soilp, &
             filter(nc)%num_nolakep, filter(nc)%nolakep, &
             filter(nc)%num_nolakec, filter(nc)%nolakec, &
-            patch, col, canopystate_inst, atm2lnd_inst, water_inst)
+            patch, col, canopystate_inst, atm2lnd_inst, water_inst, soilstate_inst)
 
        call HandleNewSnow(bounds_clump, &
             filter(nc)%num_nolakec, filter(nc)%nolakec, &

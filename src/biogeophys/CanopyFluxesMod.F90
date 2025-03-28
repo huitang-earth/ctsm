@@ -14,7 +14,7 @@ module CanopyFluxesMod
   use shr_log_mod           , only : errMsg => shr_log_errMsg
   use abortutils            , only : endrun
   use clm_varctl            , only : iulog, use_cn, use_lch4, use_c13, use_c14, use_cndv, use_fates, &
-                                     use_luna, use_hydrstress
+                                     use_luna, use_hydrstress, use_mosslichen_mode, use_mosslichen_photosyn, use_mosslichen_photo_flux, use_mosslichen_water, mosslichen_elai,use_mosslichen_rad
   use clm_varpar            , only : nlevgrnd, nlevsno
   use clm_varcon            , only : namep 
   use pftconMod             , only : pftcon
@@ -326,6 +326,10 @@ contains
     real(r8) :: deldT                                ! derivative of "el" on "t_veg" [pa/K]
     real(r8) :: qsatl(bounds%begp:bounds%endp)       ! leaf specific humidity [kg/kg]
     real(r8) :: qsatldT(bounds%begp:bounds%endp)     ! derivative of "qsatl" on "t_veg"
+    real(r8) :: eg(bounds%begc:bounds%endc)          ! vapor pressure on soil surface [pa]
+    real(r8) :: degdT                                ! derivative of "eg" on "t_soil" [pa/K]
+    real(r8) :: qsatg(bounds%begc:bounds%endc)       ! soil surface specific humidity [kg/kg]
+    real(r8) :: qsatgdT_soil                         ! derivative of "qsatg" on "t_soil"
     real(r8) :: e_ref2m                              ! 2 m height surface saturated vapor pressure [Pa]
     real(r8) :: de2mdT                               ! derivative of 2 m height surface saturated vapor pressure on t_ref2m
     real(r8) :: qsat_ref2m                           ! 2 m height surface saturated specific humidity [kg/kg]
@@ -407,6 +411,7 @@ contains
     real(r8) :: dt_veg_temp(bounds%begp:bounds%endp)
     integer  :: iv
     logical  :: is_end_day                               ! is end of current day
+    real(r8) :: mosslichen_elai_tmp(bounds%begp:bounds%endp)                      ! temporary mosslichen_elai
 
     integer :: dummy_to_make_pgi_happy
     !------------------------------------------------------------------------------
@@ -717,12 +722,15 @@ contains
       do f = 1, fn
          p = filterp(f)
          c = patch%column(p)
+      
+         if(use_mosslichen_rad == 2 .or. use_mosslichen_rad == 4 .or. (use_mosslichen_rad == 5 .and. snow_depth(c)>params_inst%z_dl))then
+            mosslichen_elai_tmp(p)= 0.001_r8                      !here mossliche_elai_tmp is patch variable, which is enough for the purpose
+         else
+            mosslichen_elai_tmp(p)= mosslichen_elai
+         end if
          
-!       elai(p)=0.01
-!       esai(p)=0.01
-
-!         lt = min(elai(p)+esai(p), tlsai_crit)
-         lt=0.01
+         lt = mosslichen_elai_tmp(p) * min(elai(p)+esai(p), tlsai_crit)
+         
          egvf =(1._r8 - alpha_aero * exp(-lt)) / (1._r8 - alpha_aero * exp(-tlsai_crit))
          displa(p) = egvf * displa(p)
          z0mv(p)   = exp(egvf * log(z0mv(p)) + (1._r8 - egvf) * log(z0mg(c)))
@@ -747,6 +755,7 @@ contains
          ! at the leaf surface
 
          call QSat (t_veg(p), forc_pbot(c), el(p), deldT, qsatl(p), qsatldT(p))
+         call QSat (t_soisno(c,1), forc_pbot(c), eg(c), degdT, qsatg(c), qsatgdT_soil)
 
          ! Determine atmospheric co2 and o2
 
@@ -843,23 +852,23 @@ contains
 
             cf  = params_inst%cv / (sqrt(uaf(p)) * sqrt(dleaf_patch(p)))
 
-! Hui            
-           if ( EDPftvarcon_inst%stomatal_model(patch%itype(p)) == 3 .or. EDPftvarcon_inst%stomatal_model(patch%itype(p)) == 4 ) then ! moss or lichen  
-               print *, "moss or lichen 00"   
+! Hui    This part does not do anything, will be removed in the final version        
+!           if ( EDPftvarcon_inst%stomatal_model(patch%itype(p)) == 3 .or. EDPftvarcon_inst%stomatal_model(patch%itype(p)) == 4 ) then ! moss or lichen  
+!               print *, "moss or lichen 00"   
+!               rb(p)  = 1._r8/(cf*uaf(p))
+!           else
                rb(p)  = 1._r8/(cf*uaf(p))
-           else
-               rb(p)  = 1._r8/(cf*uaf(p))
-           end if
+!           end if
 ! Hui            
-           print *, "rb=", rb(p)
+!           print *, "rb=", rb(p)
            
-           rb1(p) = rb(p)
+            rb1(p) = rb(p)
 
             ! Parameterization for variation of csoilc with canopy density from
             ! X. Zeng, University of Arizona
-
-            !w = exp(-(elai(p)+esai(p)))
-            w = exp(-(0.01))
+          
+            w = exp(-mosslichen_elai_tmp(p) * (elai(p)+esai(p)))
+            
             ! changed by K.Sakaguchi from here
             ! transfer coefficient over bare soil is changed to a local variable
             ! just for readability of the code (from line 680)
@@ -877,11 +886,21 @@ contains
             print *, "check2=", EDPftvarcon_inst%stomatal_model(patch%itype(p))
             if ( EDPftvarcon_inst%stomatal_model(patch%itype(p)) == 3 .or. EDPftvarcon_inst%stomatal_model(patch%itype(p)) == 4 ) then ! moss or lichen  
                print *, "moss or lichen 0"          
-               ricsoilc= params_inst%csoilc    !* fwet(p)          ! even smaller than 0.004.
-!               csoilcn = csoilb*w + ricsoilc*(1._r8-w)
-               csoilcn = ricsoilc
-!               print *, "csoilcn=", csoilcn
-               print *, "csoilcn=", csoilcn
+!Hui: This part is not needed anymore, as we are not aiming to make pure vegetation representation working. This is also not physically-sounding.
+!               if (use_mosslichen_mode==0) then              ! Try to increase ground resistance if moss and lichen are implemented as vegetation (largest resistence -> lowest conductance)
+!                  ricsoilc= params_inst%csoilc    !* fwet(p)          ! even smaller than 0.004.
+!                  csoilcn = ricsoilc
+!                  print *, "csoilcn=", csoilcn
+!               else                                      ! Use the normal scheme for ground resistance, if moss and lichen are implemented as vegetation
+                 if (use_undercanopy_stability .and. (taf(p) - t_grnd(c) ) > 0._r8) then
+                    ! decrease the value of csoilc by dividing it with (1+gamma*min(S, 10.0))
+                    ! ria ("gmanna" in Sakaguchi&Zeng, 2008) is a constant (=0.5)
+                    ricsoilc = params_inst%csoilc / (1.00_r8 + ria*min( ri, 10.0_r8) )
+                    csoilcn = csoilb*w + ricsoilc*(1._r8-w)
+                 else
+                    csoilcn = csoilb*w + params_inst%csoilc*(1._r8-w)
+                 end if
+!               end if
             else            
               if (use_undercanopy_stability .and. (taf(p) - t_grnd(c) ) > 0._r8) then
                  ! decrease the value of csoilc by dividing it with (1+gamma*min(S, 10.0))
@@ -895,7 +914,6 @@ contains
 !EHui
 
             !! Sakaguchi changes for stability formulation ends here
-
             rah(p,2) = 1._r8/(csoilcn*uaf(p))
             print *, "rah_pp=", rah(p,2)
             raw(p,2) = rah(p,2)
@@ -908,7 +926,12 @@ contains
 !Hui: saturation vapor pressure for moss and lichen shoulded be modified
 !Hui: Porada et al. 2013, equation B27, B28
             if ( EDPftvarcon_inst%stomatal_model(patch%itype(p)) == 3 .or. EDPftvarcon_inst%stomatal_model(patch%itype(p)) == 4 ) then
-               svpts(p) = qg_soil(c)     ! pa
+              if (use_mosslichen_mode==0) then
+                 svpts(p) = el(p)     ! pa
+              else
+                 !svpts(p) = qg_soil(c)
+                 svpts(p) = eg(c)*(1-mosslichen_elai_tmp(p))+el(p)*mosslichen_elai_tmp(p)    ! pa
+              end if
             else
                svpts(p) = el(p) 
             end if
@@ -974,8 +997,8 @@ contains
             ! Moved the original subroutine in-line...
 
             wta    = 1._r8/rah(p,1)             ! air
-            !wtl    = (elai(p)+esai(p))/rb(p)    ! leaf
-            wtl    = (0.01)/rb(p)    ! leaf
+            wtl    = mosslichen_elai_tmp(p) * (elai(p)+esai(p))/rb(p)    ! leaf
+            
             wtg(p) = 1._r8/rah(p,2)             ! ground
             wtshi  = 1._r8/(wta+wtl+wtg(p))
 
@@ -1002,9 +1025,8 @@ contains
             end if
             
             ! Calculate canopy conductance for methane / oxygen (e.g. stomatal conductance & leaf bdy cond)
-            if (use_lch4) then
-               !canopy_cond(p) = (laisun(p)/(rb(p)+rssun(p)) + laisha(p)/(rb(p)+rssha(p)))/max(elai(p), 0.01_r8)
-               canopy_cond(p) = (laisun(p)/(rb(p)+rssun(p)) + laisha(p)/(rb(p)+rssha(p)))/max(0.01, 0.01_r8)
+            if (use_lch4)    then
+               canopy_cond(p) = (laisun(p)/(rb(p)+rssun(p)) + laisha(p)/(rb(p)+rssha(p)))/max(mosslichen_elai_tmp(p)*elai(p), 0.01_r8)
             end if
 
             efpot = forc_rho(c)*wtl*(qsatl(p)-qaf(p))
@@ -1051,8 +1073,8 @@ contains
             ! Moved the original subroutine in-line...
 
             wtaq    = frac_veg_nosno(p)/raw(p,1)                        ! air
-            !wtlq    = frac_veg_nosno(p)*(elai(p)+esai(p))/rb(p) * rpp   ! leaf
-            wtlq    = frac_veg_nosno(p)*(0.01)/rb(p) * rpp
+            wtlq    = frac_veg_nosno(p)* mosslichen_elai_tmp(p) * (elai(p)+esai(p))/rb(p) * rpp   ! leaf
+            
             !Litter layer resistance. Added by K.Sakaguchi
             snow_depth_c = params_inst%z_dl ! critical depth for 100% litter burial by snow (=litter thickness)
             fsno_dl = snow_depth(c)/snow_depth_c    ! effective snow cover for (dry)plant litter
@@ -1061,14 +1083,31 @@ contains
 
             ! add litter resistance and Lee and Pielke 1992 beta
             if (delq(p) < 0._r8) then  !dew. Do not apply beta for negative flux (follow old rsoil)
-               wtgq(p) = frac_veg_nosno(p)/(raw(p,2)+rdl)
+               if (EDPftvarcon_inst%stomatal_model(patch%itype(p)) == 3 .or. EDPftvarcon_inst%stomatal_model(patch%itype(p)) == 4) then
+               !Hui: avoid using dry litter layer for moss covered patch
+                  wtgq(p) = frac_veg_nosno(p)/(raw(p,2))
+               else
+                  wtgq(p) = frac_veg_nosno(p)/(raw(p,2)+rdl)
+               end if
             else
-               if (do_soilevap_beta()) then
-                  wtgq(p) = soilbeta(c)*frac_veg_nosno(p)/(raw(p,2)+rdl)
-               endif
-               if (do_soil_resistance_sl14()) then
-                  wtgq(p) = frac_veg_nosno(p)/(raw(p,2)+soilresis(c))
-               endif
+               if (EDPftvarcon_inst%stomatal_model(patch%itype(p)) == 3 .or. EDPftvarcon_inst%stomatal_model(patch%itype(p)) == 4) then
+               ! Hui: avoid using dry litter layer (rdl) for moss covered patch
+                 if (do_soilevap_beta()) then
+                    wtgq(p) = soilbeta(c)*frac_veg_nosno(p)/(raw(p,2))
+                 endif
+                 if (do_soil_resistance_sl14()) then
+                    wtgq(p) = frac_veg_nosno(p)/(raw(p,2))
+                 endif           
+               else
+                 if (do_soilevap_beta()) then
+                    wtgq(p) = soilbeta(c)*frac_veg_nosno(p)/(raw(p,2)+rdl)
+                 endif
+                 if (do_soil_resistance_sl14()) then
+                    !wtgq(p) = frac_veg_nosno(p)/(raw(p,2)+soilresis(c))
+                    !Hui: for testing, also remove dry litter layer for other PFT
+                    wtgq(p) = frac_veg_nosno(p)/(raw(p,2))
+                 endif
+               end if
             end if
 
             wtsqi   = 1._r8/(wtaq+wtlq+wtgq(p))
@@ -1084,8 +1123,13 @@ contains
             dc2 = hvap*forc_rho(c)*wtlq
 !Hui
         if ( EDPftvarcon_inst%stomatal_model(patch%itype(p)) == 3 .or. EDPftvarcon_inst%stomatal_model(patch%itype(p)) == 4 ) then ! moss or lichen
-            efsh = forc_rho(c)*cpair*((wtl*wta*(t_veg(p)-thm(p))/(wtl+wta))-wtg(p)*(t_grnd(c)-t_veg(p)))
-            efe(p) = dc2*(wtgaq*qsatl(p)-wtgq0*qg(c)-wtaq0(p)*forc_q(c))           
+            if (use_mosslichen_photo_flux==1) then
+              efsh = forc_rho(c)*cpair*((wtl*wta*(t_veg(p)-thm(p))/(wtl+wta))-wtg(p)*(t_grnd(c)-t_veg(p)))
+              efe(p) = dc2*(wtgaq*qsatl(p)-wtgq0*qg(c)-wtaq0(p)*forc_q(c))           
+            else 
+              efsh   = dc1*(wtga*t_veg(p)-wtg0*t_grnd(c)-wta0(p)*thm(p))
+              efe(p) = dc2*(wtgaq*qsatl(p)-wtgq0*qg(c)-wtaq0(p)*forc_q(c))
+            end if
         else
             efsh   = dc1*(wtga*t_veg(p)-wtg0*t_grnd(c)-wta0(p)*thm(p))
             efe(p) = dc2*(wtgaq*qsatl(p)-wtgq0*qg(c)-wtaq0(p)*forc_q(c))
@@ -1104,9 +1148,15 @@ contains
                  +frac_h2osfc(c)*t_h2osfc(c)**4)
 !Hui
         if ( EDPftvarcon_inst%stomatal_model(patch%itype(p)) == 3 .or. EDPftvarcon_inst%stomatal_model(patch%itype(p)) == 4 ) then ! moss or lichen
-            dt_veg(p) = (sabv(p) + air(p) + bir(p)*t_veg(p)**4 + &
+            if (use_mosslichen_photo_flux==1) then
+               dt_veg(p) = (sabv(p) + air(p) + bir(p)*t_veg(p)**4 + &
                  cir(p)*lw_grnd - efsh - efe(p)) / &
-                 (- 4._r8*bir(p)*t_veg(p)**3 +forc_rho(c)*cpair*(wtl*wta/(wtl+wta)+wtg(p)) +dc2*wtgaq*qsatldT(p))        
+                 (- 4._r8*bir(p)*t_veg(p)**3 +forc_rho(c)*cpair*(wtl*wta/(wtl+wta)+wtg(p)) +dc2*wtgaq*qsatldT(p))
+            else
+               dt_veg(p) = (sabv(p) + air(p) + bir(p)*t_veg(p)**4 + &
+                   cir(p)*lw_grnd - efsh - efe(p)) / &
+                   (- 4._r8*bir(p)*t_veg(p)**3 +dc1*wtga +dc2*wtgaq*qsatldT(p))
+            end if
         else
             dt_veg(p) = (sabv(p) + air(p) + bir(p)*t_veg(p)**4 + &
                  cir(p)*lw_grnd - efsh - efe(p)) / &
@@ -1122,10 +1172,17 @@ contains
                dt_veg(p) = delmax*dels/del(p)
                t_veg(p) = tlbef(p) + dt_veg(p)
                if ( EDPftvarcon_inst%stomatal_model(patch%itype(p)) == 3 .or. EDPftvarcon_inst%stomatal_model(patch%itype(p)) == 4 ) then ! moss or lichen
-                    err(p) = sabv(p) + air(p) + bir(p)*tlbef(p)**3*(tlbef(p) + &
-                    4._r8*dt_veg(p)) + cir(p)*lw_grnd - &
-                    (efsh + forc_rho(c)*cpair*(wtl*wta/(wtl+wta)+wtg(p))*dt_veg(p)) - (efe(p) + &
-                    dc2*wtgaq*qsatldT(p)*dt_veg(p))                                   
+                    if (use_mosslichen_photo_flux==1) then
+                      err(p) = sabv(p) + air(p) + bir(p)*tlbef(p)**3*(tlbef(p) + &
+                                  4._r8*dt_veg(p)) + cir(p)*lw_grnd - &
+                                  (efsh + forc_rho(c)*cpair*(wtl*wta/(wtl+wta)+wtg(p))*dt_veg(p)) - (efe(p) + &
+                                  dc2*wtgaq*qsatldT(p)*dt_veg(p))
+                    else
+                      err(p) = sabv(p) + air(p) + bir(p)*tlbef(p)**3*(tlbef(p) + &
+                      4._r8*dt_veg(p)) + cir(p)*lw_grnd - &
+                      (efsh + dc1*wtga*dt_veg(p)) - (efe(p) + &
+                      dc2*wtgaq*qsatldT(p)*dt_veg(p))
+                    end if
                else
                     err(p) = sabv(p) + air(p) + bir(p)*tlbef(p)**3*(tlbef(p) + &
                     4._r8*dt_veg(p)) + cir(p)*lw_grnd - &
@@ -1260,7 +1317,11 @@ contains
          ! Fluxes from ground to canopy space
 
          if ( EDPftvarcon_inst%stomatal_model(patch%itype(p)) == 3 .or. EDPftvarcon_inst%stomatal_model(patch%itype(p)) == 4 ) then ! moss or lichen
-           delt    =t_grnd(c)-t_veg(p)
+           if (use_mosslichen_photo_flux==1) then
+             delt    =t_grnd(c)-t_veg(p)
+           else
+             delt    = wtal(p)*t_grnd(c)-wtl0(p)*t_veg(p)-wta0(p)*thm(p)
+           end if
          else
            delt    = wtal(p)*t_grnd(c)-wtl0(p)*t_veg(p)-wta0(p)*thm(p)
          end if
@@ -1272,9 +1333,15 @@ contains
          ! compute individual sensible heat fluxes
          if ( EDPftvarcon_inst%stomatal_model(patch%itype(p)) == 3 .or. EDPftvarcon_inst%stomatal_model(patch%itype(p)) == 4 ) then ! moss or lichen
          ! Hui, this part may need further consideration.
-           delt_snow = t_soisno(c,snl(c)+1)-t_veg(p)
-           delt_soil  =t_soisno(c,1)-t_veg(p)
-           delt_h2osfc  = t_h2osfc(c)-t_veg(p)
+           if (use_mosslichen_photo_flux==1) then
+              delt_snow = t_soisno(c,snl(c)+1)-t_veg(p)
+              delt_soil  =t_soisno(c,1)-t_veg(p)
+              delt_h2osfc  = t_h2osfc(c)-t_veg(p)
+           else
+              delt_snow   = wtal(p)*t_soisno(c,snl(c)+1)-wtl0(p)*t_veg(p)-wta0(p)*thm(p)
+              delt_soil   = wtal(p)*t_soisno(c,1)-wtl0(p)*t_veg(p)-wta0(p)*thm(p)
+              delt_h2osfc = wtal(p)*t_h2osfc(c)-wtl0(p)*t_veg(p)-wta0(p)*thm(p)
+           end if
          else
            delt_snow   = wtal(p)*t_soisno(c,snl(c)+1)-wtl0(p)*t_veg(p)-wta0(p)*thm(p)
            delt_soil   = wtal(p)*t_soisno(c,1)-wtl0(p)*t_veg(p)-wta0(p)*thm(p)
@@ -1363,6 +1430,7 @@ contains
          ! The weight is the so-called vegetation emissivity, but not that emv is actually an attentuation 
          ! function that goes to zero as LAI (ELAI + ESAI) go to zero.
 
+         ! Hui: emv is related to elai and esai, need special treatment for moss and lichen?
          t_skin_patch(p)  =  emv(p)*t_veg(p)  +  (1._r8 - emv(p))*sqrt(sqrt(lw_grnd))
 
          ! Derivative of soil energy flux with respect to soil temperature
@@ -1372,7 +1440,7 @@ contains
          cgrnd(p)  = cgrnds(p) + cgrndl(p)*htvp(c)
 
          ! Update dew accumulation (kg/m2)
-!      if ( EDPftvarcon_inst%stomatal_model(patch%itype(p)) == 1 .or. EDPftvarcon_inst%stomatal_model(patch%itype(p)) == 2 ) then ! only non -moss or -lichen, do an update
+      if (use_mosslichen_mode==0 .or. EDPftvarcon_inst%stomatal_model(patch%itype(p)) == 1 .or. EDPftvarcon_inst%stomatal_model(patch%itype(p)) == 2 .or. use_mosslichen_water<2) then ! only non -moss or -lichen, do an update
          if (t_veg(p) > tfrz ) then ! above freezing, update accumulation in liqcan
             if ((qflx_evap_veg(p)-qflx_tran_veg(p))*dtime > liqcan(p)) then ! all liq evap
                ! In this case, all liqcan will evap. Take remainder from snocan
@@ -1388,7 +1456,7 @@ contains
             snocan(p) = max(0._r8,snocan(p)+(qflx_tran_veg(p)-qflx_evap_veg(p))*dtime)
          end if 
          print *, "test_mosslichen1"                
- !     end if
+      end if
       end do     
  
       if ( use_fates ) then

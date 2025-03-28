@@ -296,6 +296,7 @@ contains
 
     do fc = 1, num_hydrologyc
        c = filter_hydrologyc(fc)
+       ! Hui: Need to derive qinmax_on_unsaturated to only moss layer for moss rather than 1-3 layers of hksat?
        qinmax_on_unsaturated_area(c) = minval(10._r8**(-params_inst%e_ice*(icefrac(c,1:3)))*hksat(c,1:3))
     end do
 

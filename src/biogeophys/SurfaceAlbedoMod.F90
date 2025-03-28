@@ -14,7 +14,7 @@ module SurfaceAlbedoMod
   use landunit_varcon   , only : istsoil, istcrop, istdlak
   use clm_varcon        , only : grlnd, namep
   use clm_varpar        , only : numrad, nlevcan, nlevsno, nlevcan
-  use clm_varctl        , only : fsurdat, iulog, use_snicar_frc, use_SSRE
+  use clm_varctl        , only : fsurdat, iulog, use_snicar_frc, use_SSRE, use_mosslichen_rad, use_mosslichen_mode, use_mosslichen_photosyn
   use pftconMod         , only : pftcon
   use SnowSnicarMod     , only : sno_nbr_aer, SNICAR_RT, DO_SNO_AER, DO_SNO_OC
   use AerosolMod        , only : aerosol_type
@@ -361,6 +361,7 @@ contains
           h2osoi_liq    =>    waterstatebulk_inst%h2osoi_liq_col      , & ! Input:  [real(r8)  (:,:) ]  liquid water content (col,lyr) [kg/m2]
           h2osoi_ice    =>    waterstatebulk_inst%h2osoi_ice_col      , & ! Input:  [real(r8)  (:,:) ]  ice lens content (col,lyr) [kg/m2]    
           snw_rds       =>    waterdiagnosticbulk_inst%snw_rds_col         , & ! Input:  [real(r8)  (:,:) ]  snow grain radius (col,lyr) [microns] 
+          snow_depth    =>    waterdiagnosticbulk_inst%snow_depth_col, & ! input: snow depth
 
           mss_cnc_bcphi =>    aerosol_inst%mss_cnc_bcphi_col      , & ! Input:  [real(r8)  (:,:) ]  mass concentration of hydrophilic BC (col,lyr) [kg/kg]
           mss_cnc_bcpho =>    aerosol_inst%mss_cnc_bcpho_col      , & ! Input:  [real(r8)  (:,:) ]  mass concentration of hydrophobic BC (col,lyr) [kg/kg]
@@ -383,6 +384,8 @@ contains
           albgri        =>    surfalb_inst%albgri_col             , & ! Output:  [real(r8) (:,:) ]  ground albedo (diffuse)               
           albsod        =>    surfalb_inst%albsod_col             , & ! Output:  [real(r8) (:,:) ]  direct-beam soil albedo (col,bnd) [frc]
           albsoi        =>    surfalb_inst%albsoi_col             , & ! Output:  [real(r8) (:,:) ]  diffuse soil albedo (col,bnd) [frc]   
+          fabi_nv       =>    surfalb_inst%fabi_moss_col          , & ! Output:  [real(r8) (:,:) ]  direct-beam soil albedo (col,bnd) [frc]
+          fabd_nv       =>    surfalb_inst%fabd_moss_col          , & ! Output:  [real(r8) (:,:) ]  diffuse soil albedo (col,bnd) [frc]   
           albgrd_pur    =>    surfalb_inst%albgrd_pur_col         , & ! Output:  [real(r8) (:,:) ]  pure snow ground albedo (direct)      
           albgri_pur    =>    surfalb_inst%albgri_pur_col         , & ! Output:  [real(r8) (:,:) ]  pure snow ground albedo (diffuse)     
           albgrd_bc     =>    surfalb_inst%albgrd_bc_col          , & ! Output:  [real(r8) (:,:) ]  ground albedo without BC (direct)     
@@ -492,12 +495,13 @@ contains
     
 ! Create solar-vegetated filter for the following calculations
 ! Hui: This part needs to be moved here
-    num_vegsol  = 0
-    num_novegsol= 0
-    num_nvsol   = 0
-    num_nonvsol = 0
-    do fp = 1,num_nourbanp
-       p = filter_nourbanp(fp)
+!    if(use_mosslichen_rad == 2 .or. use_mosslichen_rad == 4)then
+       num_vegsol  = 0
+       num_novegsol= 0
+       num_nvsol   = 0
+       num_nonvsol = 0
+       do fp = 1,num_nourbanp
+          p = filter_nourbanp(fp)
           if (coszen_patch(p) > 0._r8) then
              if ((lun%itype(patch%landunit(p)) == istsoil .or.  &
                   lun%itype(patch%landunit(p)) == istcrop     ) &
@@ -517,8 +521,8 @@ contains
 !                end if
              end if
           end if
-    end do
-    
+      end do
+!    end if
 
     call SoilAlbedo(bounds, &
          num_nourbanc, filter_nourbanc, &
@@ -538,18 +542,22 @@ contains
 !        3. how to recognize moss and lichen patch for calculation: this is done in fates not here. (But it is also needed to have mosslichen filter in CLM too.)
 !        4. how to calculate radiation absorption: wrap_sunfrac need to be modified
 
-    if (use_fates) then
-       call clm_fates%wrap_mosslichen_radiation(bounds, nc, &
+    if(use_mosslichen_rad == 2 .or. use_mosslichen_rad == 4 .or. use_mosslichen_rad == 5)then ! Here, we cannot use "snow_depth(c)>0.0" to avoid calling "wrap_mosslichen_radiation", 
+                                                                                              ! because it is not called on patch level. 
+      if (use_fates) then
+        call clm_fates%wrap_mosslichen_radiation(bounds, nc, &
                  num_vegsol, filter_vegsol, &
                  coszen_patch(bounds%begp:bounds%endp), surfalb_inst)
+      end if
 
 !Hui: should do filter here, to recognize patches covered by moss and lichen to have different treatment.
 !     FATES can not handle the patches without moss and lichen
-       
        do c=bounds%begc,bounds%endc
-           albsfc_nv(c,:)     = 0                   ! create a new variable to keep moss and lichen albedo for column
-           albsfc_nv_d(c,:)     = 0 
-           wtcol_nv(c,:)     = 0                   ! keep the sum of moss and lichen area weight in a column
+           albsfc_nv(c,:)     =0                   ! create a new variable to keep moss and lichen albedo for column
+           albsfc_nv_d(c,:)   =0 
+           fabi_nv(c,:)       =0                   ! absorbed fraction of moss need to be set to 0 for each time step
+           fabd_nv(c,:)       =0
+           wtcol_nv(c,:)      =0                   ! keep the sum of moss and lichen area weight in a column
        end do
        
        ! sum up non-vascular plant albedo
@@ -561,32 +569,46 @@ contains
              ! how to aggregate surface albedo for moss and lichen? Starting from cohort to patch to column
              ! assume moss and lichen cover limited fraction of soil rather than the whole soil column
              albsfc_nv(c,ib)  = albsfc_nv(c,ib) + albi(p,ib) * patch%wtcol(p)
-             albsfc_nv_d(c,ib)  = albsfc_nv_d(c,ib) + albd(p,ib) * patch%wtcol(p)
-             wtcol_nv(c,ib) = wtcol_nv(c,ib)+patch%wtcol(p)
+             albsfc_nv_d(c,ib)  = albsfc_nv_d(c,ib) + albd(p,ib) * patch%wtcol(p)             
+             fabi_nv(c,ib)=fabi_nv(c,ib)+fabi(p,ib) * patch%wtcol(p)   ! get absorption rate for moss
+             fabd_nv(c,ib)=fabd_nv(c,ib)+fabd(p,ib) * patch%wtcol(p)    
+             !print *, "fabi, fabd=", p, ib, fabi(p,ib), fabd(p,ib)
+             wtcol_nv(c,ib) = wtcol_nv(c,ib)+patch%wtcol(p)                                       
              print *, "test_rad2: albi, wtcol=", albi(p,ib), patch%wtcol(p),albd(p,ib)
-          end do
+          end do          
        end do
+              
        print *, "test_rad3: albsfc_nv, wtcol_nv=", albsfc_nv(:,:), wtcol_nv(:,:)
        
        ! sum up soil and non-vascular plant albedo
        do c=bounds%begc,bounds%endc
-          albsfc(c,:)     = albsoi(c,:)*(1-wtcol_nv(c,:))+albsfc_nv(c,:)        ! Weighted average of moss/lichen albedo and soil albedo
-          albsfc_d(c,:)   = albsod(c,:)*(1-wtcol_nv(c,:))+albsfc_nv_d(c,:)
+          if (wtcol_nv(c,1)>0) then            ! Hui: need to calculate column averaged absorption rate
+             fabi_nv(c,:)=fabi_nv(c,:)/wtcol_nv(c,:)
+             fabd_nv(c,:)=fabd_nv(c,:)/wtcol_nv(c,:)
+          end if   
+          if(use_mosslichen_rad == 2 .or. use_mosslichen_rad == 4 .or. (use_mosslichen_rad == 5 .and. snow_depth(c)>0.05))then
+             albsfc(c,:)     = albsoi(c,:)*(1-wtcol_nv(c,:))+albsfc_nv(c,:)        ! Weighted average of moss/lichen albedo and soil albedo
+             albsfc_d(c,:)   = albsod(c,:)*(1-wtcol_nv(c,:))+albsfc_nv_d(c,:)
+          else
+             albsfc(c,:)     = albsoi(c,:)
+          end if 
        end do
        print *, "test_rad4: albsoi, albsfc=", albsoi(:,:), albsfc(:,:), albsod(:,:), albsfc_d(:,:)
 
        do c=bounds%begc,bounds%endc
-         albsoi(c,:)=albsfc(c,:) 
-         albsod(c,:)=albsfc_d(c,:)
+          if(use_mosslichen_rad == 2 .or. use_mosslichen_rad == 4 .or. (use_mosslichen_rad == 5 .and. snow_depth(c)>0.05))then
+             albsoi(c,:)=albsfc(c,:) 
+             albsod(c,:)=albsfc_d(c,:)
+          end if
        end do
+       
     else
       do c=bounds%begc,bounds%endc
           albsfc(c,:)     = albsoi(c,:)
       end do
     end if
-    
     ! call clm_fates%wrap_mosslichen_albedo()
-     
+    
     ! set variables to pass to SNICAR.
     flg_snw_ice = 1   ! calling from CLM, not CSIM
     do c=bounds%begc,bounds%endc
@@ -1198,7 +1220,16 @@ contains
              l = col%landunit(c)
 
              if (lun%itype(l) == istsoil .or. lun%itype(l) == istcrop)  then ! soil
-                inc    = max(0.11_r8-0.40_r8*h2osoi_vol(c,1), 0._r8)
+                !Hui: if moss occupy the top soil layer in the mixed representation,
+                !     use soil moisture from the second layer (not the top moss layer) 
+                !     to derive soil moisture modifier for albedo.
+                if (use_mosslichen_mode>0 .and. use_mosslichen_photosyn>0) then
+                   inc    = max(0.11_r8-0.40_r8*h2osoi_vol(c,2), 0._r8)
+                   !print *, "inc, h2osoi_vol=", inc, h2osoi_vol(c,2)
+                else
+                   inc    = max(0.11_r8-0.40_r8*h2osoi_vol(c,1), 0._r8)
+                endif
+                
                 soilcol = isoicol(c)
                 ! changed from local variable to clm_type:
                 !albsod = min(albsat(soilcol,ib)+inc, albdry(soilcol,ib))
